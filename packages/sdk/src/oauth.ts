@@ -52,7 +52,7 @@ export class OAuth {
     this.apiBaseUrl = options.apiBaseUrl ?? "https://api.are.na";
     this.authorizationBaseUrl = options.authorizationBaseUrl ?? "https://www.are.na";
     this.clientId = options.clientId;
-    this.fetchImpl = options.fetch ?? globalThis.fetch;
+    this.fetchImpl = options.fetch ?? globalThis.fetch.bind(globalThis);
     this.redirectUri = options.redirectUri;
   }
 

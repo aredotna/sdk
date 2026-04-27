@@ -40,6 +40,42 @@ describe("OAuth", () => {
     ).rejects.toThrow("OAuth state mismatch");
   });
 
+  it("binds the default global fetch for browser compatibility", async () => {
+    const originalFetch = globalThis.fetch;
+
+    globalThis.fetch = function (this: typeof globalThis) {
+      expect(this).toBe(globalThis);
+
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            access_token: "token",
+            created_at: 1,
+            scope: "write",
+            token_type: "Bearer",
+          }),
+          {
+            headers: { "Content-Type": "application/json" },
+          },
+        ),
+      );
+    } as typeof fetch;
+
+    try {
+      const oauth = new OAuth({
+        clientId: "client",
+        redirectUri: "https://example.com/callback",
+      });
+
+      await expect(oauth.exchangeCode({ code: "code" })).resolves.toMatchObject({
+        access_token: "token",
+        token_type: "Bearer",
+      });
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
   it("generates PKCE verifier/challenge pairs", async () => {
     const pkce = await generatePKCE();
 
