@@ -33,7 +33,7 @@ export const retryDelayFromRateLimit = (rateLimit: RateLimitInfo | undefined) =>
 };
 
 export const createRateLimitFetch = ({
-  fetchImpl = globalThis.fetch,
+  fetchImpl = globalThis.fetch.bind(globalThis),
   rateLimit,
   retry,
 }: {

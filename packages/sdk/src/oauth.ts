@@ -1,3 +1,5 @@
+import pkceChallenge from "pkce-challenge";
+
 export type OAuthScope = "read" | "write" | `${"read" | "write"} ${"read" | "write"}`;
 
 export interface OAuthOptions {
@@ -41,6 +43,69 @@ export interface PKCEPair {
   codeVerifier: string;
 }
 
+export type OAuthCallbackResult =
+  | {
+      code: string;
+      ok: true;
+      state?: string;
+    }
+  | {
+      error: string;
+      errorDescription?: string;
+      ok: false;
+      state?: string;
+    };
+
+export class OAuthError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = new.target.name;
+  }
+}
+
+export class OAuthStateMismatchError extends OAuthError {
+  readonly expectedState?: string;
+  readonly state?: string;
+
+  constructor(options: { expectedState?: string; state?: string }) {
+    super("OAuth state mismatch.");
+    this.expectedState = options.expectedState;
+    this.state = options.state;
+  }
+}
+
+export class OAuthMissingCodeError extends OAuthError {
+  constructor() {
+    super("OAuth callback URL did not include an authorization code.");
+  }
+}
+
+export class OAuthProviderError extends OAuthError {
+  readonly error: string;
+  readonly errorDescription?: string;
+  readonly state?: string;
+
+  constructor(result: Extract<OAuthCallbackResult, { ok: false }>) {
+    super(result.errorDescription ?? result.error);
+    this.error = result.error;
+    this.errorDescription = result.errorDescription;
+    this.state = result.state;
+  }
+}
+
+export class OAuthTokenExchangeError extends OAuthError {
+  readonly payload: unknown;
+  readonly response: Response;
+  readonly status: number;
+
+  constructor(response: Response, payload: unknown) {
+    super(tokenExchangeMessage(response, payload));
+    this.payload = payload;
+    this.response = response;
+    this.status = response.status;
+  }
+}
+
 export class OAuth {
   private readonly apiBaseUrl: string;
   private readonly authorizationBaseUrl: string;
@@ -81,7 +146,10 @@ export class OAuth {
       options.state !== undefined &&
       options.state !== options.expectedState
     ) {
-      throw new Error("OAuth state mismatch.");
+      throw new OAuthStateMismatchError({
+        expectedState: options.expectedState,
+        state: options.state,
+      });
     }
 
     return this.token({
@@ -111,7 +179,8 @@ export class OAuth {
       }
     }
 
-    const response = await this.fetchImpl(new URL("/v3/oauth/token", this.apiBaseUrl), {
+    const fetchImpl = this.fetchImpl;
+    const response = await fetchImpl(new URL("/v3/oauth/token", this.apiBaseUrl), {
       body: form,
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
@@ -119,13 +188,9 @@ export class OAuth {
       method: "POST",
     });
 
-    const payload = await response.json();
+    const payload = await readJson(response);
     if (!response.ok) {
-      throw new Error(
-        typeof payload?.error_description === "string"
-          ? payload.error_description
-          : `OAuth token exchange failed with status ${response.status}.`,
-      );
+      throw new OAuthTokenExchangeError(response, payload);
     }
 
     return payload as OAuthTokenResponse;
@@ -133,18 +198,95 @@ export class OAuth {
 }
 
 export const generatePKCE = async (): Promise<PKCEPair> => {
-  const codeVerifier = randomVerifier();
-  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(codeVerifier));
+  const pair = await pkceChallenge();
   return {
-    codeChallenge: base64UrlEncode(new Uint8Array(digest)),
-    codeVerifier,
+    codeChallenge: pair.code_challenge,
+    codeVerifier: pair.code_verifier,
   };
 };
 
 export const generateState = (bytes = 32) =>
   base64UrlEncode(crypto.getRandomValues(new Uint8Array(bytes)));
 
-const randomVerifier = () => generateState(64);
+export const parseOAuthCallback = (url: string | URL): OAuthCallbackResult => {
+  const parsed = parseUrl(url);
+  if (!parsed) {
+    return {
+      error: "invalid_callback_url",
+      errorDescription: "OAuth callback URL could not be parsed.",
+      ok: false,
+    };
+  }
+
+  const state = parsed.searchParams.get("state") ?? undefined;
+  const error = parsed.searchParams.get("error");
+
+  if (error) {
+    return {
+      error,
+      errorDescription: parsed.searchParams.get("error_description") ?? undefined,
+      ok: false,
+      state,
+    };
+  }
+
+  const code = parsed.searchParams.get("code");
+  if (!code) {
+    return {
+      error: "missing_code",
+      errorDescription: "OAuth callback URL did not include an authorization code.",
+      ok: false,
+      state,
+    };
+  }
+
+  return {
+    code,
+    ok: true,
+    state,
+  };
+};
+
+const readJson = async (response: Response) => {
+  const text = await response.text();
+  if (!text) {
+    return {};
+  }
+
+  try {
+    return JSON.parse(text) as unknown;
+  } catch {
+    return text;
+  }
+};
+
+const tokenExchangeMessage = (response: Response, payload: unknown) => {
+  if (payload && typeof payload === "object") {
+    const description = (payload as Record<string, unknown>).error_description;
+    if (typeof description === "string") {
+      return description;
+    }
+
+    const error = (payload as Record<string, unknown>).error;
+    if (typeof error === "string") {
+      return `OAuth token exchange failed: ${error}`;
+    }
+  }
+
+  return `OAuth token exchange failed with status ${response.status}.`;
+};
+
+const parseUrl = (url: string | URL) => {
+  try {
+    if (url instanceof URL) {
+      return url;
+    }
+
+    return new URL(url);
+  } catch {
+    return undefined;
+  }
+};
 
 const base64UrlEncode = (bytes: Uint8Array) => {
   let binary = "";

@@ -87,12 +87,28 @@ The lower-level helper also works with generated operations from `@aredotna/sdk/
 Register an OAuth application at
 [are.na/oauth/applications](https://www.are.na/oauth/applications).
 
+The SDK exposes OAuth primitives from `@aredotna/sdk/oauth`. Apps still own routing,
+short-lived PKCE/state storage, and long-lived session persistence.
+
 ```ts
-import { OAuth, generatePKCE, generateState } from "@aredotna/sdk/oauth";
+import {
+  OAuth,
+  OAuthMissingCodeError,
+  OAuthProviderError,
+  OAuthStateMismatchError,
+  generatePKCE,
+  generateState,
+  parseOAuthCallback,
+} from "@aredotna/sdk/oauth";
 
 const oauth = new OAuth({ clientId, redirectUri });
 const pkce = await generatePKCE();
 const state = generateState();
+
+// Store transient values before leaving your app. sessionStorage is usually the
+// right browser primitive for one-tab OAuth transactions.
+sessionStorage.setItem("arena:oauth:codeVerifier", pkce.codeVerifier);
+sessionStorage.setItem("arena:oauth:state", state);
 
 location.assign(
   oauth.authorizeUrl({
@@ -101,14 +117,48 @@ location.assign(
     state,
   }),
 );
+```
+
+On your callback page:
+
+```ts
+import { createArena } from "@aredotna/sdk";
+
+const callback = parseOAuthCallback(window.location.href);
+
+if (!callback.ok) {
+  if (callback.error === "missing_code") {
+    throw new OAuthMissingCodeError();
+  }
+  throw new OAuthProviderError(callback);
+}
+
+const codeVerifier = sessionStorage.getItem("arena:oauth:codeVerifier");
+const expectedState = sessionStorage.getItem("arena:oauth:state");
+
+if (callback.state !== expectedState) {
+  throw new OAuthStateMismatchError({
+    expectedState: expectedState ?? undefined,
+    state: callback.state,
+  });
+}
 
 const token = await oauth.exchangeCode({
-  code,
-  codeVerifier: pkce.codeVerifier,
-  expectedState: stateFromCookie,
-  state: stateFromRedirect,
+  code: callback.code,
+  codeVerifier: codeVerifier ?? undefined,
+  expectedState: expectedState ?? undefined,
+  state: callback.state,
 });
+
+sessionStorage.removeItem("arena:oauth:codeVerifier");
+sessionStorage.removeItem("arena:oauth:state");
+
+const arena = createArena({ token: token.access_token });
 ```
+
+`parseOAuthCallback()` never throws. It returns either `{ ok: true, code, state }` or
+`{ ok: false, error, errorDescription, state }`, so callback screens can render provider
+errors without string parsing.
 
 For confidential server-side clients:
 
@@ -116,6 +166,11 @@ For confidential server-side clients:
 const token = await oauth.exchangeCode({ code, clientSecret });
 const appToken = await oauth.clientCredentials({ clientSecret });
 ```
+
+The SDK does not persist access tokens. Store application sessions and tokens according to your
+app's security model. For browser PKCE transactions, prefer
+[`sessionStorage`](https://developer.mozilla.org/en-US/docs/Web/API/Window/sessionStorage) over
+`localStorage` because the verifier/state are short-lived redirect transaction values.
 
 ## Uploads
 
