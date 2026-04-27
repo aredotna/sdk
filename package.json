@@ -1,0 +1,22 @@
+{
+  "name": "@aredotna/sdk-monorepo",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.33.2",
+  "scripts": {
+    "build": "pnpm --filter @aredotna/sdk build",
+    "check": "biome check .",
+    "check:fix": "biome check --write .",
+    "gen": "pnpm --filter @aredotna/sdk gen",
+    "gen:fetch": "node scripts/fetch-openapi.mjs",
+    "test": "pnpm --filter @aredotna/sdk test",
+    "test:live": "pnpm --filter @aredotna/sdk test:live",
+    "typecheck": "pnpm --filter @aredotna/sdk typecheck"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "latest",
+    "@changesets/cli": "latest",
+    "typescript": "latest"
+  }
+}

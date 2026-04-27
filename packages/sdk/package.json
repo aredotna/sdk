@@ -1,0 +1,61 @@
+{
+  "name": "@aredotna/sdk",
+  "version": "0.0.0",
+  "description": "Official TypeScript SDK for the Are.na API",
+  "type": "module",
+  "sideEffects": false,
+  "license": "MIT",
+  "homepage": "https://www.are.na/developers/explore",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/aredotna/sdk.git",
+    "directory": "packages/sdk"
+  },
+  "bugs": {
+    "url": "https://github.com/aredotna/sdk/issues"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./api": {
+      "types": "./dist/api.d.ts",
+      "import": "./dist/api.js"
+    },
+    "./oauth": {
+      "types": "./dist/oauth.d.ts",
+      "import": "./dist/oauth.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "package.json"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsup",
+    "gen": "openapi-ts",
+    "pack:dry": "npm pack --dry-run",
+    "prepublishOnly": "pnpm build && pnpm test",
+    "test": "vitest run",
+    "test:live": "ARENA_LIVE_TESTS=1 vitest run test/live.smoke.test.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "keywords": [
+    "arena",
+    "are.na",
+    "api",
+    "sdk",
+    "typescript"
+  ],
+  "devDependencies": {
+    "@hey-api/openapi-ts": "^0.96.1",
+    "tsup": "^8.5.1",
+    "vitest": "^3.2.4"
+  }
+}
