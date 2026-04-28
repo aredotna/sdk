@@ -21,6 +21,11 @@
     "skipLibCheck": true,
     "strict": true,
     "target": "ES2022",
+    "paths": {
+      "@aredotna/sdk": ["./packages/sdk/src/index.ts"],
+      "@aredotna/sdk/api": ["./packages/sdk/src/api.ts"],
+      "@aredotna/sdk/oauth": ["./packages/sdk/src/oauth.ts"]
+    },
     "types": []
   }
 }
