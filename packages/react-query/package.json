@@ -1,0 +1,64 @@
+{
+  "name": "@aredotna/react-query",
+  "version": "0.0.0",
+  "description": "TanStack Query hooks for the Are.na SDK",
+  "type": "module",
+  "sideEffects": false,
+  "license": "MIT",
+  "homepage": "https://www.are.na/developers/explore",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/aredotna/sdk.git",
+    "directory": "packages/react-query"
+  },
+  "bugs": {
+    "url": "https://github.com/aredotna/sdk/issues"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "package.json"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "peerDependencies": {
+    "@aredotna/sdk": "^0.0.0",
+    "@tanstack/react-query": "^5.0.0",
+    "react": ">=18"
+  },
+  "devDependencies": {
+    "@aredotna/sdk": "workspace:*",
+    "@tanstack/react-query": "latest",
+    "@testing-library/react": "latest",
+    "@types/react": "latest",
+    "@types/react-dom": "latest",
+    "jsdom": "^25.0.1",
+    "react": "latest",
+    "react-dom": "latest",
+    "tsup": "latest",
+    "typescript": "latest",
+    "vitest": "latest"
+  },
+  "scripts": {
+    "build": "tsup",
+    "pack:dry": "npm pack --dry-run",
+    "prepublishOnly": "pnpm build && pnpm test",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "keywords": [
+    "arena",
+    "are.na",
+    "react",
+    "tanstack-query",
+    "typescript"
+  ]
+}

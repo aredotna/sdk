@@ -5,18 +5,19 @@
   "type": "module",
   "packageManager": "pnpm@10.33.2",
   "scripts": {
-    "build": "pnpm --filter @aredotna/sdk build",
+    "build": "pnpm --filter './packages/*' build",
     "check": "biome check .",
     "check:fix": "biome check --write .",
     "gen": "pnpm --filter @aredotna/sdk gen",
     "gen:fetch": "node scripts/fetch-openapi.mjs",
-    "test": "pnpm --filter @aredotna/sdk test",
+    "test": "pnpm --filter './packages/*' test",
+    "publish:all": "pnpm -r --filter './packages/*' publish --access public --no-git-checks",
     "test:live": "pnpm --filter @aredotna/sdk test:live",
-    "typecheck": "pnpm --filter @aredotna/sdk typecheck"
+    "typecheck": "pnpm --filter './packages/*' typecheck",
+    "version:all": "node scripts/version-all.mjs"
   },
   "devDependencies": {
     "@biomejs/biome": "latest",
-    "@changesets/cli": "latest",
     "typescript": "latest"
   }
 }

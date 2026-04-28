@@ -22,3 +22,4 @@ export type {
 } from "./generated/types.gen";
 export type { ArenaOptions, RetryOptions, TokenProvider } from "./options";
 export type { RateLimitInfo } from "./rate-limit";
+export type { CreateUploadBlockOptions, UploadedFile, UploadInput, UploadOptions } from "./uploads";
