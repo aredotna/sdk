@@ -7,8 +7,13 @@ const TEMP_BUCKET_BASE_URL = "https://s3.amazonaws.com/arena_images-temp";
 
 const toPresignFile = (file: { contentType: string; filename: string }) => ({
   content_type: file.contentType,
-  filename: encodeURIComponent(file.filename),
+  filename: file.filename,
 });
+
+const encodeS3KeyForUrl = (key: string) => {
+  const params = new URLSearchParams({ key });
+  return params.toString().slice("key=".length);
+};
 
 export type UploadInput =
   | File
@@ -159,7 +164,7 @@ const putPresignedFile = async (
     contentType: presignedFile.content_type,
     key: presignedFile.key,
     uploadUrl: presignedFile.upload_url,
-    url: `${TEMP_BUCKET_BASE_URL}/${presignedFile.key}`,
+    url: `${TEMP_BUCKET_BASE_URL}/${encodeS3KeyForUrl(presignedFile.key)}`,
   };
 };
 
