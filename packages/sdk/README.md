@@ -64,7 +64,7 @@ await arena.connections.create({
   connectable_type: "Block",
   channel_ids: [456],
 });
-await arena.users.get("damonzucconi");
+await arena.users.get("damon-zucconi");
 await arena.groups.get("some-group");
 ```
 
