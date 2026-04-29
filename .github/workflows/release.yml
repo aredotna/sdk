@@ -23,6 +23,7 @@ jobs:
       github.event.pull_request.base.ref == 'main')
     runs-on: ubuntu-latest
     permissions:
+      actions: write
       contents: write
 
     steps:
@@ -129,3 +130,9 @@ jobs:
       - name: Push release commit and tags
         if: steps.release_meta.outputs.should_release == 'true'
         run: git push origin HEAD:main "v${{ steps.version.outputs.version }}"
+
+      - name: Trigger publish workflow
+        if: steps.release_meta.outputs.should_release == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run publish.yml --ref main -f tag="v${{ steps.version.outputs.version }}"
