@@ -1,6 +1,6 @@
 {
   "name": "@aredotna/react-query",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "description": "TanStack Query hooks for the Are.na SDK",
   "type": "module",
   "sideEffects": false,
@@ -30,7 +30,7 @@
     "node": ">=20"
   },
   "peerDependencies": {
-    "@aredotna/sdk": "^0.0.0",
+    "@aredotna/sdk": "^0.0.1",
     "@tanstack/react-query": "^5.0.0",
     "react": ">=18"
   },
