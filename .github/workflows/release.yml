@@ -128,4 +128,4 @@ jobs:
 
       - name: Push release commit and tags
         if: steps.release_meta.outputs.should_release == 'true'
-        run: git push origin HEAD:main --follow-tags
+        run: git push origin HEAD:main "v${{ steps.version.outputs.version }}"

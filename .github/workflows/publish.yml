@@ -73,7 +73,7 @@ jobs:
               echo "${NAME}@${VERSION} already published"
             else
               echo "Publishing ${NAME}@${VERSION}"
-              pnpm --dir "$PACKAGE_DIR" publish --access public --no-git-checks
+              npm publish "./${PACKAGE_DIR}" --access public
             fi
           done
 
