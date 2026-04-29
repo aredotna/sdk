@@ -3,21 +3,31 @@ import { createArena } from "../src";
 
 describe("uploads", () => {
   it("presigns, uploads to S3, and returns the temporary file URL", async () => {
-    const apiFetch = vi.fn(async () =>
-      json(
+    const apiFetch = vi.fn<typeof fetch>(async (input) => {
+      const request = asRequest(input);
+      await expect(request.json()).resolves.toEqual({
+        files: [
+          {
+            content_type: "text/plain",
+            filename: "test%20file%20%C3%BC.txt",
+          },
+        ],
+      });
+
+      return json(
         {
           expires_in: 3600,
           files: [
             {
               content_type: "text/plain",
-              key: "uploads/test.txt",
+              key: "uploads/test%20file%20%C3%BC.txt",
               upload_url: "https://s3.example/upload",
             },
           ],
         },
         { status: 201 },
-      ),
-    );
+      );
+    });
     const originalFetch = globalThis.fetch;
     const s3Fetch = vi.fn(async () => new Response(null, { status: 200 }));
     globalThis.fetch = s3Fetch as typeof fetch;
@@ -29,12 +39,14 @@ describe("uploads", () => {
         {
           contentType: "text/plain",
           data: new TextEncoder().encode("hello"),
-          filename: "test.txt",
+          filename: "test file ü.txt",
         },
         { onProgress: progress },
       );
 
-      expect(uploaded.url).toBe("https://s3.amazonaws.com/arena_images-temp/uploads/test.txt");
+      expect(uploaded.url).toBe(
+        "https://s3.amazonaws.com/arena_images-temp/uploads/test%20file%20%C3%BC.txt",
+      );
       expect(s3Fetch).toHaveBeenCalledWith(
         "https://s3.example/upload",
         expect.objectContaining({ method: "PUT" }),
@@ -45,7 +57,47 @@ describe("uploads", () => {
       globalThis.fetch = originalFetch;
     }
   });
+
+  it("encodes filenames when presigning directly", async () => {
+    const apiFetch = vi.fn<typeof fetch>(async (input) => {
+      const request = asRequest(input);
+      await expect(request.json()).resolves.toEqual({
+        files: [
+          {
+            content_type: "image/jpeg",
+            filename: "photo%201%2Fcover.jpg",
+          },
+        ],
+      });
+
+      return json(
+        {
+          expires_in: 3600,
+          files: [
+            {
+              content_type: "image/jpeg",
+              key: "uploads/photo%201%2Fcover.jpg",
+              upload_url: "https://s3.example/upload",
+            },
+          ],
+        },
+        { status: 201 },
+      );
+    });
+
+    const arena = createArena({ fetch: apiFetch });
+
+    await arena.uploads.presign([{ contentType: "image/jpeg", filename: "photo 1/cover.jpg" }]);
+  });
 });
+
+const asRequest = (input: RequestInfo | URL) => {
+  if (input instanceof Request) {
+    return input;
+  }
+
+  return new Request(input);
+};
 
 const json = (body: unknown, init?: ResponseInit) =>
   new Response(JSON.stringify(body), {

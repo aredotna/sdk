@@ -5,6 +5,11 @@ import { type RequestOverrides, data as readData, withClient } from "./resources
 
 const TEMP_BUCKET_BASE_URL = "https://s3.amazonaws.com/arena_images-temp";
 
+const toPresignFile = (file: { contentType: string; filename: string }) => ({
+  content_type: file.contentType,
+  filename: encodeURIComponent(file.filename),
+});
+
 export type UploadInput =
   | File
   | Blob
@@ -44,10 +49,7 @@ export const createUploadsResource = ({ client }: { client: ArenaClient }) => ({
           client,
           {
             body: {
-              files: files.map((file) => ({
-                content_type: file.contentType,
-                filename: file.filename,
-              })),
+              files: files.map(toPresignFile),
             },
           },
           options,
@@ -63,10 +65,7 @@ export const createUploadsResource = ({ client }: { client: ArenaClient }) => ({
       presignUpload(
         withClient(client, {
           body: {
-            files: normalized.map((file) => ({
-              content_type: file.contentType,
-              filename: file.filename,
-            })),
+            files: normalized.map(toPresignFile),
           },
         }),
       ),
@@ -113,12 +112,7 @@ const uploadOne = async (
         client,
         {
           body: {
-            files: [
-              {
-                content_type: file.contentType,
-                filename: file.filename,
-              },
-            ],
+            files: [toPresignFile(file)],
           },
         },
         options,
