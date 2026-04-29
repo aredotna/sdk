@@ -10,14 +10,23 @@
     "check:fix": "biome check --write .",
     "gen": "pnpm --filter @aredotna/sdk gen",
     "gen:fetch": "node scripts/fetch-openapi.mjs",
+    "prepare": "simple-git-hooks",
     "test": "pnpm --filter './packages/*' test",
     "publish:all": "pnpm -r --filter './packages/*' publish --access public --no-git-checks",
     "test:live": "pnpm --filter @aredotna/sdk test:live",
     "typecheck": "pnpm --filter @aredotna/sdk build && pnpm --filter './packages/*' typecheck",
     "version:all": "node scripts/version-all.mjs"
   },
+  "lint-staged": {
+    "*": "biome check --write --no-errors-on-unmatched --files-ignore-unknown=true"
+  },
+  "simple-git-hooks": {
+    "pre-commit": "pnpm exec lint-staged"
+  },
   "devDependencies": {
     "@biomejs/biome": "latest",
+    "lint-staged": "^16.4.0",
+    "simple-git-hooks": "^2.13.1",
     "typescript": "latest"
   }
 }
