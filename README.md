@@ -4,9 +4,9 @@ This repository contains the official TypeScript SDK for the Are.na API.
 
 Published packages:
 
-- `@aredotna/sdk`: generated from the Are.na OpenAPI specification with a small ergonomic
+- [`@aredotna/sdk`](packages/sdk): generated from the Are.na OpenAPI specification with a small ergonomic
   facade for OAuth, pagination, uploads, and error handling.
-- `@aredotna/react-query`: TanStack Query hooks over the stable SDK facade.
+- [`@aredotna/react-query`](packages/react-query): TanStack Query hooks over the stable SDK facade.
 
 ## Development
 

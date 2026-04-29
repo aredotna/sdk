@@ -23,7 +23,7 @@ import { ArenaProvider } from "@aredotna/react-query";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 const queryClient = new QueryClient();
-const arena = createArena({ token: process.env.ARENA_TOKEN });
+const arena = createArena();
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
@@ -39,23 +39,23 @@ export function Providers({ children }: { children: React.ReactNode }) {
 ## Queries
 
 ```tsx
-import { useChannel, useChannelContents, useInfiniteChannelContents, useMe } from "@aredotna/react-query";
+import { useChannel, useInfiniteChannelContents, useMe } from "@aredotna/react-query";
 
 function Channel({ id }: { id: string }) {
   const channel = useChannel(id);
-  const contents = useChannelContents(id, { page: 1, per: 50 });
-  const infiniteContents = useInfiniteChannelContents(id, { per: 50 });
+  const contents = useInfiniteChannelContents(id, { per: 50 });
+  const items = contents.data?.pages.flatMap((page) => page.data) ?? [];
 
   if (channel.isLoading) return null;
 
   return (
     <>
       <h1>{channel.data?.title}</h1>
-      {contents.data?.data.map((item) => (
+      {items.map((item) => (
         <div key={item.id}>{item.type}</div>
       ))}
-      {infiniteContents.hasNextPage ? (
-        <button onClick={() => infiniteContents.fetchNextPage()}>Load more</button>
+      {contents.hasNextPage ? (
+        <button onClick={() => contents.fetchNextPage()}>Load more</button>
       ) : null}
     </>
   );
@@ -105,24 +105,30 @@ Mutations invalidate the `["arena"]` query namespace by default. Pass `invalidat
 opt out and handle invalidation yourself.
 
 ```tsx
-import {
-  useCreateBlock,
-  useCreateBlockComment,
-  useCreateChannel,
-  useCreateConnection,
-  useDeleteConnection,
-  useDeleteComment,
-  useMoveConnection,
-} from "@aredotna/react-query";
+import { useCreateBlock, useCreateChannel } from "@aredotna/react-query";
 
-const createChannel = useCreateChannel();
-createChannel.mutate({ title: "Notes", visibility: "private" });
+function CreateButtons() {
+  const createChannel = useCreateChannel();
+  const createBlock = useCreateBlock({ invalidate: false });
 
-const createBlock = useCreateBlock({ invalidate: false });
-createBlock.mutate({
-  channels: [{ id: 123 }],
-  value: "https://www.are.na",
-});
+  return (
+    <>
+      <button onClick={() => createChannel.mutate({ title: "Notes", visibility: "private" })}>
+        Create channel
+      </button>
+      <button
+        onClick={() =>
+          createBlock.mutate({
+            channels: [{ id: 123 }],
+            value: "https://www.are.na",
+          })
+        }
+      >
+        Create block
+      </button>
+    </>
+  );
+}
 ```
 
 Available mutation hooks:

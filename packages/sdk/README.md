@@ -123,7 +123,15 @@ On your callback page:
 
 ```ts
 import { createArena } from "@aredotna/sdk";
+import {
+  OAuth,
+  OAuthMissingCodeError,
+  OAuthProviderError,
+  OAuthStateMismatchError,
+  parseOAuthCallback,
+} from "@aredotna/sdk/oauth";
 
+const oauth = new OAuth({ clientId, redirectUri });
 const callback = parseOAuthCallback(window.location.href);
 
 if (!callback.ok) {
@@ -182,7 +190,8 @@ const block = await arena.uploads.createBlock({
   file,
   channels: [{ id: 123 }],
   block: {
-    metadata: { title: "Reference image" },
+    title: "Reference image",
+    description: "A short note about why this image belongs in the channel.",
   },
 });
 ```
