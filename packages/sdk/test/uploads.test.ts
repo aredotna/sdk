@@ -3,13 +3,14 @@ import { createArena } from "../src";
 
 describe("uploads", () => {
   it("presigns, uploads to S3, and returns the temporary file URL", async () => {
+    const filename = "Image Apr 28, 2026, 06_13_47 PM.png";
     const apiFetch = vi.fn<typeof fetch>(async (input) => {
       const request = asRequest(input);
       await expect(request.json()).resolves.toEqual({
         files: [
           {
             content_type: "text/plain",
-            filename: "test%20file%20%C3%BC.txt",
+            filename,
           },
         ],
       });
@@ -20,7 +21,7 @@ describe("uploads", () => {
           files: [
             {
               content_type: "text/plain",
-              key: "uploads/test%20file%20%C3%BC.txt",
+              key: `uploads/cd4890dc-0d17-48e4-a9f0-a7295e98c8ac/${filename}`,
               upload_url: "https://s3.example/upload",
             },
           ],
@@ -39,13 +40,13 @@ describe("uploads", () => {
         {
           contentType: "text/plain",
           data: new TextEncoder().encode("hello"),
-          filename: "test file ü.txt",
+          filename,
         },
         { onProgress: progress },
       );
 
       expect(uploaded.url).toBe(
-        "https://s3.amazonaws.com/arena_images-temp/uploads/test%20file%20%C3%BC.txt",
+        "https://s3.amazonaws.com/arena_images-temp/uploads%2Fcd4890dc-0d17-48e4-a9f0-a7295e98c8ac%2FImage+Apr+28%2C+2026%2C+06_13_47+PM.png",
       );
       expect(s3Fetch).toHaveBeenCalledWith(
         "https://s3.example/upload",
@@ -58,14 +59,14 @@ describe("uploads", () => {
     }
   });
 
-  it("encodes filenames when presigning directly", async () => {
+  it("sends raw filenames when presigning directly", async () => {
     const apiFetch = vi.fn<typeof fetch>(async (input) => {
       const request = asRequest(input);
       await expect(request.json()).resolves.toEqual({
         files: [
           {
             content_type: "image/jpeg",
-            filename: "photo%201%2Fcover.jpg",
+            filename: "photo 1/cover.jpg",
           },
         ],
       });
@@ -76,7 +77,7 @@ describe("uploads", () => {
           files: [
             {
               content_type: "image/jpeg",
-              key: "uploads/photo%201%2Fcover.jpg",
+              key: "uploads/photo 1/cover.jpg",
               upload_url: "https://s3.example/upload",
             },
           ],
