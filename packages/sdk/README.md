@@ -70,17 +70,30 @@ await arena.groups.get("some-group");
 
 ## Pagination
 
-Are.na channels and users can contain thousands of items. Fetch pages lazily and stop when
-you have enough:
+Are.na channels and users can contain thousands of items. Fetch the first page quickly, render
+partial data, and load more pages only when the user scrolls or explicitly asks for more.
 
 ```ts
-for await (const page of arena.channels.paginateContents("arena-influences", { per: 50 })) {
-  render(page.data);
-  if (done) break;
+const pages = arena.channels.paginateContents("arena-influences", { per: 24 });
+
+const firstPage = await pages.next();
+if (!firstPage.done) {
+  render(firstPage.value.data);
+}
+
+async function loadMore() {
+  const nextPage = await pages.next();
+  if (!nextPage.done) {
+    append(nextPage.value.data);
+  }
 }
 ```
 
-The lower-level helper also works with generated operations from `@aredotna/sdk/api`.
+List endpoints also accept explicit `page` and `per` parameters. `per` defaults to 24 and maxes
+out at 100, but avoid setting `per: 100` and crawling every page at startup. Use response
+metadata such as `meta.has_more_pages` and `meta.next_page` to request the next page on demand.
+
+The lower-level `paginate()` helper also works with generated operations from `@aredotna/sdk/api`.
 
 ## OAuth + PKCE
 
