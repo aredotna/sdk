@@ -47,7 +47,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: pnpm
           registry-url: https://registry.npmjs.org
 
       - run: pnpm install --frozen-lockfile
@@ -73,7 +72,7 @@ jobs:
               echo "${NAME}@${VERSION} already published"
             else
               echo "Publishing ${NAME}@${VERSION}"
-              npm publish "./${PACKAGE_DIR}" --access public
+              npm publish "./${PACKAGE_DIR}" --access public --ignore-scripts
             fi
           done
 
