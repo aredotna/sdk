@@ -1,6 +1,6 @@
 {
   "name": "@aredotna/sdk",
-  "version": "0.0.4",
+  "version": "0.1.0",
   "description": "Official TypeScript SDK for the Are.na API",
   "type": "module",
   "sideEffects": false,
