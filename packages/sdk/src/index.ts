@@ -10,5 +10,5 @@ export {
   ArenaRateLimitError,
   ArenaValidationError,
 } from "./errors";
-export { paginate } from "./pagination";
+export { paginate, paginateCursor } from "./pagination";
 export type * from "./types";

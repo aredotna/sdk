@@ -1,5 +1,5 @@
 import { type ArenaClient, createClientWithState } from "./client";
-import { getCurrentUser, getPing } from "./generated/sdk.gen";
+import { getPing } from "./generated/sdk.gen";
 import type { ArenaOptions } from "./options";
 import type { RateLimitInfo } from "./rate-limit";
 import { type BlocksResource, createBlocksResource } from "./resources/blocks";
@@ -7,6 +7,7 @@ import { type ChannelsResource, createChannelsResource } from "./resources/chann
 import { type CommentsResource, createCommentsResource } from "./resources/comments";
 import { type ConnectionsResource, createConnectionsResource } from "./resources/connections";
 import { createGroupsResource, type GroupsResource } from "./resources/groups";
+import { createMeResource, type MeResource } from "./resources/me";
 import { createSearchResource, type SearchResource } from "./resources/search";
 import { data, type RequestOverrides, withClient } from "./resources/shared";
 import { createUsersResource, type UsersResource } from "./resources/users";
@@ -23,7 +24,7 @@ export interface Arena {
   readonly search: SearchResource;
   readonly uploads: UploadsResource;
   readonly users: UsersResource;
-  me(options?: RequestOverrides): ReturnType<typeof me>;
+  readonly me: MeResource;
   ping(options?: RequestOverrides): ReturnType<typeof ping>;
 }
 
@@ -45,16 +46,13 @@ export const createArena = (options: ArenaOptions = {}): Arena => {
       return rateLimit.current;
     },
     groups: createGroupsResource(context),
-    me: (requestOptions?: RequestOverrides) => me(client, requestOptions),
+    me: createMeResource(context),
     ping: (requestOptions?: RequestOverrides) => ping(client, requestOptions),
     search: createSearchResource(context),
     uploads: createUploadsResource(context),
     users: createUsersResource(context),
   };
 };
-
-const me = (client: ArenaClient, options?: RequestOverrides) =>
-  data(getCurrentUser(withClient(client, undefined, options)));
 
 const ping = (client: ArenaClient, options?: RequestOverrides) =>
   data(getPing(withClient(client, undefined, options)));
