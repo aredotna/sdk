@@ -102,4 +102,31 @@ describe("paginate", () => {
 
     expect(queries).toEqual([{ limit: 10, next: "initial-next" }]);
   });
+
+  it("walks previous cursor pages when initialized with prev", async () => {
+    const queries: Array<Record<string, unknown> | undefined> = [];
+
+    for await (const _page of paginateCursor(
+      async ({ query }) => {
+        queries.push(query);
+        return {
+          data: [],
+          meta: {
+            has_more: true,
+            limit: 10,
+            next_cursor: "older-cursor",
+            prev_cursor: query?.prev === "prev-cursor" ? "newer-cursor" : null,
+          },
+        };
+      },
+      { query: { limit: 10, prev: "prev-cursor" } },
+    )) {
+      // Exhaust the generator.
+    }
+
+    expect(queries).toEqual([
+      { limit: 10, prev: "prev-cursor" },
+      { limit: 10, prev: "newer-cursor" },
+    ]);
+  });
 });
