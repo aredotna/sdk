@@ -10,6 +10,17 @@ type Operation<TParams, TPage extends PaginatedResponse> = (
   params: TParams & { query?: Record<string, unknown> },
 ) => Promise<TPage>;
 
+export interface CursorPaginatedResponse {
+  meta?: {
+    has_more?: boolean;
+    next_cursor?: string | null;
+  };
+}
+
+type CursorOperation<TParams, TPage extends CursorPaginatedResponse> = (
+  params: TParams & { query?: Record<string, unknown> },
+) => Promise<TPage>;
+
 export async function* paginate<
   TParams extends { query?: Record<string, unknown> },
   TPage extends PaginatedResponse,
@@ -32,5 +43,34 @@ export async function* paginate<
     }
 
     page = result.meta.next_page ?? page + 1;
+  }
+}
+
+export async function* paginateCursor<
+  TParams extends { query?: Record<string, unknown> },
+  TPage extends CursorPaginatedResponse,
+>(
+  operation: CursorOperation<TParams, TPage>,
+  params: TParams,
+): AsyncGenerator<TPage, void, unknown> {
+  let next = params.query?.next;
+  const { next: _next, prev: _prev, ...query } = params.query ?? {};
+
+  while (true) {
+    const result = await operation({
+      ...params,
+      query: {
+        ...query,
+        next,
+      },
+    });
+
+    yield result;
+
+    if (result.meta?.has_more === false || !result.meta?.next_cursor) {
+      return;
+    }
+
+    next = result.meta.next_cursor;
   }
 }

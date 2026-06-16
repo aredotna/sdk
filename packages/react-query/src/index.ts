@@ -24,6 +24,35 @@ export {
   useMoveConnection,
   useUpdateConnection,
 } from "./mutations/connections";
+export type {
+  UseCreateGroupInviteOptions,
+  UseCreateGroupOptions,
+  UseDeleteGroupInviteOptions,
+  UseDeleteGroupOptions,
+  UseInviteToGroupOptions,
+  UseJoinGroupOptions,
+  UseLeaveGroupOptions,
+  UseRemoveGroupMemberOptions,
+  UseRevokeGroupInvitationOptions,
+  UseUpdateGroupOptions,
+} from "./mutations/groups";
+export {
+  useCreateGroup,
+  useCreateGroupInvite,
+  useDeleteGroup,
+  useDeleteGroupInvite,
+  useInviteToGroup,
+  useJoinGroup,
+  useLeaveGroup,
+  useRemoveGroupMember,
+  useRevokeGroupInvitation,
+  useUpdateGroup,
+} from "./mutations/groups";
+export type {
+  UseMarkAllMyNotificationsReadOptions,
+  UseMarkMyNotificationReadOptions,
+} from "./mutations/me";
+export { useMarkAllMyNotificationsRead, useMarkMyNotificationRead } from "./mutations/me";
 export type { ArenaMutationOptions } from "./mutations/shared";
 export { useArenaMutation } from "./mutations/shared";
 export type {
@@ -68,15 +97,37 @@ export { useConnection } from "./queries/connections";
 export type {
   UseGroupContentsOptions,
   UseGroupFollowersOptions,
+  UseGroupInvitationsOptions,
+  UseGroupInviteOptions,
+  UseGroupMembersOptions,
   UseGroupOptions,
   UseInfiniteGroupContentsOptions,
+  UseInfiniteGroupInvitationsOptions,
+  UseInfiniteGroupMembersOptions,
 } from "./queries/groups";
 export {
   useGroup,
   useGroupContents,
   useGroupFollowers,
+  useGroupInvitations,
+  useGroupInvite,
+  useGroupMembers,
   useInfiniteGroupContents,
+  useInfiniteGroupInvitations,
+  useInfiniteGroupMembers,
 } from "./queries/groups";
+export type {
+  UseInfiniteMyFeedOptions,
+  UseInfiniteMyNotificationsOptions,
+  UseMyFeedOptions,
+  UseMyNotificationsOptions,
+} from "./queries/me";
+export {
+  useInfiniteMyFeed,
+  useInfiniteMyNotifications,
+  useMyFeed,
+  useMyNotifications,
+} from "./queries/me";
 export type { UsePingOptions } from "./queries/root";
 export { usePing } from "./queries/root";
 export type { UseInfiniteSearchOptions, UseSearchOptions } from "./queries/search";
@@ -99,7 +150,19 @@ export {
   useUserFollowing,
   useUserGroups,
 } from "./queries/users";
-export type { ArenaInfiniteQueryOptions, ArenaQueryOptions, PaginatedPage } from "./query";
-export { requestOptions, useArenaInfiniteQuery, useArenaQuery } from "./query";
+export type {
+  ArenaCursorInfiniteQueryOptions,
+  ArenaInfiniteQueryOptions,
+  ArenaQueryOptions,
+  CursorPageParam,
+  CursorPaginatedPage,
+  PaginatedPage,
+} from "./query";
+export {
+  requestOptions,
+  useArenaCursorInfiniteQuery,
+  useArenaInfiniteQuery,
+  useArenaQuery,
+} from "./query";
 export { arenaQueryKeys } from "./query-keys";
 export { useArena, useInvalidateArena } from "./use-arena";

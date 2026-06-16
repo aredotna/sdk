@@ -35,7 +35,7 @@ export const useMe = (options?: UseMeOptions) => {
   return useArenaQuery({
     options,
     queryFn: (arena, signal) => arena.me(requestOptions(signal)),
-    queryKey: arenaQueryKeys.me(),
+    queryKey: arenaQueryKeys.me.detail(),
   });
 };
 

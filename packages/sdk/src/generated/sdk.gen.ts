@@ -2,7 +2,7 @@
 
 import { type Client, type Options as Options2, type TDataShape, urlSearchParamsBodySerializer } from './client';
 import { client } from './client.gen';
-import type { BatchCreateBlocksData, BatchCreateBlocksErrors, BatchCreateBlocksResponses, CreateBlockCommentData, CreateBlockCommentErrors, CreateBlockCommentResponses, CreateBlockData, CreateBlockErrors, CreateBlockResponses, CreateChannelData, CreateChannelErrors, CreateChannelResponses, CreateConnectionData, CreateConnectionErrors, CreateConnectionResponses, CreateOAuthTokenData, CreateOAuthTokenErrors, CreateOAuthTokenResponses, DeleteChannelData, DeleteChannelErrors, DeleteChannelResponses, DeleteCommentData, DeleteCommentErrors, DeleteCommentResponses, DeleteConnectionData, DeleteConnectionErrors, DeleteConnectionResponses, GetBatchStatusData, GetBatchStatusErrors, GetBatchStatusResponses, GetBlockCommentsData, GetBlockCommentsErrors, GetBlockCommentsResponses, GetBlockConnectionsData, GetBlockConnectionsErrors, GetBlockConnectionsResponses, GetBlockData, GetBlockErrors, GetBlockResponses, GetChannelConnectionsData, GetChannelConnectionsErrors, GetChannelConnectionsResponses, GetChannelContentsData, GetChannelContentsErrors, GetChannelContentsResponses, GetChannelData, GetChannelErrors, GetChannelFollowersData, GetChannelFollowersErrors, GetChannelFollowersResponses, GetChannelResponses, GetConnectionData, GetConnectionErrors, GetConnectionResponses, GetCurrentUserData, GetCurrentUserErrors, GetCurrentUserResponses, GetGroupContentsData, GetGroupContentsErrors, GetGroupContentsResponses, GetGroupData, GetGroupErrors, GetGroupFollowersData, GetGroupFollowersErrors, GetGroupFollowersResponses, GetGroupResponses, GetOpenapiSpecData, GetOpenapiSpecErrors, GetOpenapiSpecJsonData, GetOpenapiSpecJsonErrors, GetOpenapiSpecJsonResponses, GetOpenapiSpecResponses, GetPingData, GetPingErrors, GetPingResponses, GetUserContentsData, GetUserContentsErrors, GetUserContentsResponses, GetUserData, GetUserErrors, GetUserFollowersData, GetUserFollowersErrors, GetUserFollowersResponses, GetUserFollowingData, GetUserFollowingErrors, GetUserFollowingResponses, GetUserGroupsData, GetUserGroupsErrors, GetUserGroupsResponses, GetUserResponses, MoveConnectionData, MoveConnectionErrors, MoveConnectionResponses, PresignUploadData, PresignUploadErrors, PresignUploadResponses, SearchData, SearchErrors, SearchResponses, UpdateBlockData, UpdateBlockErrors, UpdateBlockResponses, UpdateChannelData, UpdateChannelErrors, UpdateChannelResponses, UpdateConnectionData, UpdateConnectionErrors, UpdateConnectionResponses } from './types.gen';
+import type { BatchCreateBlocksData, BatchCreateBlocksErrors, BatchCreateBlocksResponses, CreateBlockCommentData, CreateBlockCommentErrors, CreateBlockCommentResponses, CreateBlockData, CreateBlockErrors, CreateBlockResponses, CreateChannelData, CreateChannelErrors, CreateChannelResponses, CreateConnectionData, CreateConnectionErrors, CreateConnectionResponses, CreateGroupData, CreateGroupErrors, CreateGroupInvitationData, CreateGroupInvitationErrors, CreateGroupInvitationResponses, CreateGroupInviteData, CreateGroupInviteErrors, CreateGroupInviteResponses, CreateGroupResponses, CreateOAuthTokenData, CreateOAuthTokenErrors, CreateOAuthTokenResponses, DeleteChannelData, DeleteChannelErrors, DeleteChannelResponses, DeleteCommentData, DeleteCommentErrors, DeleteCommentResponses, DeleteConnectionData, DeleteConnectionErrors, DeleteConnectionResponses, DeleteGroupData, DeleteGroupErrors, DeleteGroupInviteData, DeleteGroupInviteErrors, DeleteGroupInviteResponses, DeleteGroupResponses, GetBatchStatusData, GetBatchStatusErrors, GetBatchStatusResponses, GetBlockCommentsData, GetBlockCommentsErrors, GetBlockCommentsResponses, GetBlockConnectionsData, GetBlockConnectionsErrors, GetBlockConnectionsResponses, GetBlockData, GetBlockErrors, GetBlockResponses, GetChannelConnectionsData, GetChannelConnectionsErrors, GetChannelConnectionsResponses, GetChannelContentsData, GetChannelContentsErrors, GetChannelContentsResponses, GetChannelData, GetChannelErrors, GetChannelFollowersData, GetChannelFollowersErrors, GetChannelFollowersResponses, GetChannelResponses, GetConnectionData, GetConnectionErrors, GetConnectionResponses, GetCurrentUserData, GetCurrentUserErrors, GetCurrentUserResponses, GetGroupContentsData, GetGroupContentsErrors, GetGroupContentsResponses, GetGroupData, GetGroupErrors, GetGroupFollowersData, GetGroupFollowersErrors, GetGroupFollowersResponses, GetGroupInvitationsData, GetGroupInvitationsErrors, GetGroupInvitationsResponses, GetGroupInviteData, GetGroupInviteErrors, GetGroupInviteResponses, GetGroupMembersData, GetGroupMembersErrors, GetGroupMembersResponses, GetGroupResponses, GetMyFeedData, GetMyFeedErrors, GetMyFeedResponses, GetMyNotificationsData, GetMyNotificationsErrors, GetMyNotificationsResponses, GetOpenapiSpecData, GetOpenapiSpecErrors, GetOpenapiSpecJsonData, GetOpenapiSpecJsonErrors, GetOpenapiSpecJsonResponses, GetOpenapiSpecResponses, GetPingData, GetPingErrors, GetPingResponses, GetUserContentsData, GetUserContentsErrors, GetUserContentsResponses, GetUserData, GetUserErrors, GetUserFollowersData, GetUserFollowersErrors, GetUserFollowersResponses, GetUserFollowingData, GetUserFollowingErrors, GetUserFollowingResponses, GetUserGroupsData, GetUserGroupsErrors, GetUserGroupsResponses, GetUserResponses, JoinGroupData, JoinGroupErrors, JoinGroupResponses, LeaveGroupData, LeaveGroupErrors, LeaveGroupResponses, MarkAllMyNotificationsReadData, MarkAllMyNotificationsReadErrors, MarkAllMyNotificationsReadResponses, MarkMyNotificationReadData, MarkMyNotificationReadErrors, MarkMyNotificationReadResponses, MoveConnectionData, MoveConnectionErrors, MoveConnectionResponses, PresignUploadData, PresignUploadErrors, PresignUploadResponses, RemoveGroupMemberData, RemoveGroupMemberErrors, RemoveGroupMemberResponses, RevokeGroupInvitationData, RevokeGroupInvitationErrors, RevokeGroupInvitationResponses, SearchData, SearchErrors, SearchResponses, UpdateBlockData, UpdateBlockErrors, UpdateBlockResponses, UpdateChannelData, UpdateChannelErrors, UpdateChannelResponses, UpdateConnectionData, UpdateConnectionErrors, UpdateConnectionResponses, UpdateGroupData, UpdateGroupErrors, UpdateGroupResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -329,6 +329,7 @@ export const getChannel = <ThrowOnError extends boolean = false>(options: Option
  * Update a channel
  *
  * Updates an existing channel. Only provided fields are updated.
+ * Updating the owner requires permission to assign authorship to the target user or group.
  *
  * **Authentication required.**
  *
@@ -476,11 +477,70 @@ export const getChannelFollowers = <ThrowOnError extends boolean = false>(option
 /**
  * Get current user
  *
- * Returns the currently authenticated user's profile
+ * Returns the currently authenticated user's profile, including the
+ * token holder's `email` address. The `email` field is only exposed
+ * to the user themselves and is not present on `/v3/users/{id}` or on
+ * embedded `User` references in other resources.
+ *
  */
 export const getCurrentUser = <ThrowOnError extends boolean = false>(options?: Options<GetCurrentUserData, ThrowOnError>) => (options?.client ?? client).get<GetCurrentUserResponses, GetCurrentUserErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v3/me',
+    ...options
+});
+
+/**
+ * Get current user's feed
+ *
+ * Returns the authenticated user's primary activity feed.
+ * This feed is personalized and requires authentication.
+ *
+ */
+export const getMyFeed = <ThrowOnError extends boolean = false>(options?: Options<GetMyFeedData, ThrowOnError>) => (options?.client ?? client).get<GetMyFeedResponses, GetMyFeedErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, { scheme: 'bearer', type: 'http' }],
+    url: '/v3/me/feed',
+    ...options
+});
+
+/**
+ * Get current user's notifications
+ *
+ * Returns the authenticated user's notifications feed.
+ * Each notification includes read state for the current user.
+ *
+ */
+export const getMyNotifications = <ThrowOnError extends boolean = false>(options?: Options<GetMyNotificationsData, ThrowOnError>) => (options?.client ?? client).get<GetMyNotificationsResponses, GetMyNotificationsErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, { scheme: 'bearer', type: 'http' }],
+    url: '/v3/me/notifications',
+    ...options
+});
+
+/**
+ * Mark all current user's notifications as read
+ *
+ * Clears the authenticated user's unread notification state and returns
+ * the new unread count.
+ *
+ */
+export const markAllMyNotificationsRead = <ThrowOnError extends boolean = false>(options?: Options<MarkAllMyNotificationsReadData, ThrowOnError>) => (options?.client ?? client).post<MarkAllMyNotificationsReadResponses, MarkAllMyNotificationsReadErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, { scheme: 'bearer', type: 'http' }],
+    url: '/v3/me/notifications/read',
+    ...options
+});
+
+/**
+ * Mark a notification as read
+ *
+ * Marks one notification activity as read for the authenticated user
+ * and returns the updated notification plus the new unread count.
+ * The `id` is the activity id returned by `/v3/me/notifications`; the
+ * internal notification bulletin id remains opaque. Returns 404 if the
+ * activity is not part of the authenticated user's notifications feed.
+ *
+ */
+export const markMyNotificationRead = <ThrowOnError extends boolean = false>(options: Options<MarkMyNotificationReadData, ThrowOnError>) => (options.client ?? client).post<MarkMyNotificationReadResponses, MarkMyNotificationReadErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, { scheme: 'bearer', type: 'http' }],
+    url: '/v3/me/notifications/{id}/read',
     ...options
 });
 
@@ -549,13 +609,261 @@ export const getUserGroups = <ThrowOnError extends boolean = false>(options: Opt
 });
 
 /**
+ * Create a group
+ *
+ * Creates a new group owned by the authenticated user.
+ *
+ * **Authentication required.**
+ *
+ */
+export const createGroup = <ThrowOnError extends boolean = false>(options: Options<CreateGroupData, ThrowOnError>) => (options.client ?? client).post<CreateGroupResponses, CreateGroupErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, { scheme: 'bearer', type: 'http' }],
+    url: '/v3/groups',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Delete a group
+ *
+ * Deletes a group. This can not be undone.
+ *
+ * **Authentication required.**
+ *
+ */
+export const deleteGroup = <ThrowOnError extends boolean = false>(options: Options<DeleteGroupData, ThrowOnError>) => (options.client ?? client).delete<DeleteGroupResponses, DeleteGroupErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, { scheme: 'bearer', type: 'http' }],
+    url: '/v3/groups/{id}',
+    ...options
+});
+
+/**
  * Get a group
  *
- * Returns detailed information about a specific group by its slug. Includes group profile, bio, owner, and counts.
+ * Returns detailed information about a specific group by its slug. Includes group profile, description, owner, counts, and permissions.
  */
 export const getGroup = <ThrowOnError extends boolean = false>(options: Options<GetGroupData, ThrowOnError>) => (options.client ?? client).get<GetGroupResponses, GetGroupErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v3/groups/{id}',
+    ...options
+});
+
+/**
+ * Update a group
+ *
+ * Updates an existing group. Only provided fields are updated.
+ *
+ * **Authentication required.**
+ *
+ */
+export const updateGroup = <ThrowOnError extends boolean = false>(options: Options<UpdateGroupData, ThrowOnError>) => (options.client ?? client).put<UpdateGroupResponses, UpdateGroupErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, { scheme: 'bearer', type: 'http' }],
+    url: '/v3/groups/{id}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Get group members
+ *
+ * Returns a paginated list of group members. The group owner is always
+ * returned as the first entry on page 1 with `role: "owner"`, followed by
+ * collaborators in newest-first order with `role: "member"`. The total
+ * count includes the owner.
+ *
+ * Group managers see all collaborators; other readers only see
+ * collaborators with confirmed accounts. The owner is always shown.
+ *
+ */
+export const getGroupMembers = <ThrowOnError extends boolean = false>(options: Options<GetGroupMembersData, ThrowOnError>) => (options.client ?? client).get<GetGroupMembersResponses, GetGroupMembersErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v3/groups/{id}/members',
+    ...options
+});
+
+/**
+ * Join a group
+ *
+ * Adds the authenticated user to the group as a member. Requires a valid
+ * group invite token from `GET/POST /v3/groups/{id}/invite`; the token is
+ * the authorization to join, so it may grant access to a private group.
+ * Idempotent: if the authenticated user is already the owner or a member,
+ * the endpoint returns `200` with that user's group-member entry.
+ *
+ * **Authentication required.**
+ *
+ */
+export const joinGroup = <ThrowOnError extends boolean = false>(options: Options<JoinGroupData, ThrowOnError>) => (options.client ?? client).post<JoinGroupResponses, JoinGroupErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, { scheme: 'bearer', type: 'http' }],
+    url: '/v3/groups/{id}/members',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Leave a group
+ *
+ * Removes the authenticated user from the group. Idempotent: returns
+ * `204` whether or not the user was a member.
+ *
+ * **Authentication required.**
+ *
+ */
+export const leaveGroup = <ThrowOnError extends boolean = false>(options: Options<LeaveGroupData, ThrowOnError>) => (options.client ?? client).delete<LeaveGroupResponses, LeaveGroupErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, { scheme: 'bearer', type: 'http' }],
+    url: '/v3/groups/{id}/members/me',
+    ...options
+});
+
+/**
+ * Remove a group member
+ *
+ * Removes a user from a group.
+ *
+ * **Authentication required.**
+ *
+ */
+export const removeGroupMember = <ThrowOnError extends boolean = false>(options: Options<RemoveGroupMemberData, ThrowOnError>) => (options.client ?? client).delete<RemoveGroupMemberResponses, RemoveGroupMemberErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, { scheme: 'bearer', type: 'http' }],
+    url: '/v3/groups/{id}/members/{user_id}',
+    ...options
+});
+
+/**
+ * List pending group invitations
+ *
+ * Returns a paginated list of open (pending) membership invitations for
+ * the group, newest first. Only users who can manage invitations on the
+ * group — typically the owner and existing members — may list them.
+ *
+ * Use `POST /v3/groups/{id}/invitations` to create an invitation; that
+ * endpoint chooses between direct add and invitation automatically based
+ * on the follow relationship.
+ *
+ * ### Invitation acceptance flow
+ *
+ * Invitees receive an email with a tokenized URL that opens the Are.na web
+ * UI. Accept and decline actions are handled there via GraphQL
+ * (`acceptMembershipInvitation` and `declineMembershipInvitation`), not
+ * through this REST API. There is no REST endpoint for invitees to list
+ * their own pending invitations today; invitation discovery is email-link
+ * based.
+ *
+ * **Authentication required.**
+ *
+ */
+export const getGroupInvitations = <ThrowOnError extends boolean = false>(options: Options<GetGroupInvitationsData, ThrowOnError>) => (options.client ?? client).get<GetGroupInvitationsResponses, GetGroupInvitationsErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, { scheme: 'bearer', type: 'http' }],
+    url: '/v3/groups/{id}/invitations',
+    ...options
+});
+
+/**
+ * Add or invite a group member
+ *
+ * Resolves a `user_id` or `email` into one of four outcomes and returns
+ * which outcome occurred via the `outcome` field. HTTP status mirrors the
+ * outcome: `201` when something was created (`added`, `invited`), `200`
+ * when no work was needed (`already_member`, `invitation_pending`).
+ *
+ * Resolution rules:
+ *
+ * - `added`: The request targeted a `user_id` and that user already
+ * follows the caller. A group membership is created immediately. The
+ * "must follow caller" signal is treated as opt-in, so no invite/accept
+ * round trip is required.
+ * - `invited`: A new pending invitation was created and an email was sent.
+ * - `invitation_pending`: An open invitation for this user or email
+ * already exists; the existing invitation is returned unchanged.
+ * - `already_member`: The user is already a member; no action is taken.
+ *
+ * When invited by `email` and no user with that email exists, the caller
+ * must have permission to invite new users.
+ *
+ * **Authentication required.**
+ *
+ */
+export const createGroupInvitation = <ThrowOnError extends boolean = false>(options: Options<CreateGroupInvitationData, ThrowOnError>) => (options.client ?? client).post<CreateGroupInvitationResponses, CreateGroupInvitationErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, { scheme: 'bearer', type: 'http' }],
+    url: '/v3/groups/{id}/invitations',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Revoke a pending group invitation
+ *
+ * Revokes a pending invitation so the invitee can no longer accept it.
+ * Can be called by the invitation creator or by any user who can manage
+ * invitations on the target group.
+ *
+ * Returns `422` if the invitation is no longer pending (already accepted,
+ * declined, or revoked).
+ *
+ * **Authentication required.**
+ *
+ */
+export const revokeGroupInvitation = <ThrowOnError extends boolean = false>(options: Options<RevokeGroupInvitationData, ThrowOnError>) => (options.client ?? client).delete<RevokeGroupInvitationResponses, RevokeGroupInvitationErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, { scheme: 'bearer', type: 'http' }],
+    url: '/v3/groups/{id}/invitations/{invitation_id}',
+    ...options
+});
+
+/**
+ * Delete group invite
+ *
+ * Deletes the group's shareable invite code. Idempotent: returns `204`
+ * whether or not an invite code existed.
+ *
+ * **Authentication required.**
+ *
+ */
+export const deleteGroupInvite = <ThrowOnError extends boolean = false>(options: Options<DeleteGroupInviteData, ThrowOnError>) => (options.client ?? client).delete<DeleteGroupInviteResponses, DeleteGroupInviteErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, { scheme: 'bearer', type: 'http' }],
+    url: '/v3/groups/{id}/invite',
+    ...options
+});
+
+/**
+ * Get group invite
+ *
+ * Returns the group's shareable invite code and public invite URL. Only
+ * users who can manage the group may view the reusable invite code.
+ *
+ * **Authentication required.**
+ *
+ */
+export const getGroupInvite = <ThrowOnError extends boolean = false>(options: Options<GetGroupInviteData, ThrowOnError>) => (options.client ?? client).get<GetGroupInviteResponses, GetGroupInviteErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, { scheme: 'bearer', type: 'http' }],
+    url: '/v3/groups/{id}/invite',
+    ...options
+});
+
+/**
+ * Create or reuse group invite
+ *
+ * Creates the group's shareable invite code if it does not exist, or
+ * returns the existing one. Only users who can manage the group may create
+ * or view the reusable invite code.
+ *
+ * **Authentication required.**
+ *
+ */
+export const createGroupInvite = <ThrowOnError extends boolean = false>(options: Options<CreateGroupInviteData, ThrowOnError>) => (options.client ?? client).post<CreateGroupInviteResponses, CreateGroupInviteErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, { scheme: 'bearer', type: 'http' }],
+    url: '/v3/groups/{id}/invite',
     ...options
 });
 

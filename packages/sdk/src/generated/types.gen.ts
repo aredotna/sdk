@@ -21,6 +21,12 @@ export type Error = {
          * Detailed error message
          */
         message?: string;
+        /**
+         * Validation errors, when applicable
+         */
+        errors?: Array<string> | {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -283,6 +289,21 @@ export type User = EmbeddedUser & {
 };
 
 /**
+ * The authenticated user's own profile, returned by `GET /v3/me`.
+ * Extends `User` with the token holder's email address. This field is
+ * intentionally not present on `/v3/users/{id}` or on embedded `User`
+ * references nested in other resources.
+ *
+ */
+export type Me = User & {
+    counts?: MeCounts;
+    /**
+     * The authenticated user's email address.
+     */
+    email: string;
+};
+
+/**
  * Counts of various items for the user
  */
 export type UserCounts = {
@@ -301,13 +322,23 @@ export type UserCounts = {
 };
 
 /**
+ * Counts for the authenticated user, including private notification state.
+ */
+export type MeCounts = UserCounts & {
+    /**
+     * Number of unread notifications for the authenticated user
+     */
+    notifications: number;
+};
+
+/**
  * Full group representation
  */
 export type Group = EmbeddedGroup & {
     /**
-     * Group biography with markdown, HTML, and plain text renderings
+     * Group description with markdown, HTML, and plain text renderings
      */
-    bio?: MarkdownContent | null;
+    description?: MarkdownContent | null;
     /**
      * When the group was created
      */
@@ -321,6 +352,10 @@ export type Group = EmbeddedGroup & {
      */
     user: EmbeddedUser;
     counts: GroupCounts;
+    /**
+     * Actions the current user can perform on the group
+     */
+    can: GroupAbilities;
     /**
      * HATEOAS links for navigation
      */
@@ -339,6 +374,189 @@ export type GroupCounts = {
      * Number of users in the group
      */
     users: number;
+};
+
+/**
+ * Pending invitation for a user to join a group.
+ *
+ * Invitee acceptance and decline currently happen through the Are.na web
+ * UI using tokenized invitation links sent by email. The web UI uses the
+ * GraphQL `acceptMembershipInvitation` and `declineMembershipInvitation`
+ * mutations; this REST surface only exposes group-manager list and revoke
+ * operations.
+ *
+ */
+export type MembershipInvitation = {
+    /**
+     * Unique identifier for the invitation
+     */
+    id: number;
+    type: 'MembershipInvitation';
+    /**
+     * Group the invitee is invited to join
+     */
+    target: EmbeddedGroup;
+    /**
+     * User being invited, when available
+     */
+    invitee: EmbeddedUser | null;
+    /**
+     * Email address being invited, visible to users who can manage invitations
+     */
+    invitee_email: string | null;
+    /**
+     * User who created the invitation
+     */
+    invited_by: EmbeddedUser;
+    state: 'pending' | 'accepted' | 'declined' | 'revoked';
+    /**
+     * When the invitation was accepted
+     */
+    accepted_at: string | null;
+    /**
+     * When the invitation was created
+     */
+    created_at: string;
+    /**
+     * When the invitation was last updated
+     */
+    updated_at: string;
+    /**
+     * Links for navigation. Empty today because no public endpoint
+     * addresses an invitation directly; reserved for future use.
+     *
+     */
+    _links: {
+        [key: string]: unknown;
+    };
+};
+
+/**
+ * Shareable invite code for joining a group
+ */
+export type GroupInvite = {
+    /**
+     * Unique identifier for the invite code
+     */
+    id: number;
+    type: 'GroupInvite';
+    /**
+     * Invite code required to join the group
+     */
+    code: string;
+    /**
+     * Public Are.na URL for accepting the group invite
+     */
+    url: string;
+    /**
+     * When the invite code was created
+     */
+    created_at: string;
+    /**
+     * When the invite code was last updated
+     */
+    updated_at: string;
+    /**
+     * HATEOAS links for navigation
+     */
+    _links: Links;
+};
+
+/**
+ * Group member entry, including the group owner and any collaborators
+ */
+export type GroupMember = EmbeddedUser & {
+    /**
+     * The user's role on the group. `owner` is the group's creator;
+     * `member` is anyone else with a group membership.
+     *
+     */
+    role: 'owner' | 'member';
+};
+
+/**
+ * Data payload containing an array of group members
+ */
+export type GroupMemberList = {
+    /**
+     * Array of group members (owner first on page 1)
+     */
+    data: Array<GroupMember>;
+};
+
+/**
+ * Paginated list of group members with total count
+ */
+export type GroupMemberListResponse = GroupMemberList & PaginatedResponse;
+
+/**
+ * Data payload containing an array of membership invitations
+ */
+export type MembershipInvitationList = {
+    /**
+     * Array of pending membership invitations
+     */
+    data: Array<MembershipInvitation>;
+};
+
+/**
+ * Paginated list of pending membership invitations
+ */
+export type MembershipInvitationListResponse = MembershipInvitationList & PaginatedResponse;
+
+/**
+ * Discriminator for the result of `POST /v3/groups/{id}/invitations`.
+ *
+ * - `added`: A new group membership was created (the invitee already
+ * follows the caller, so the invite/accept round trip was skipped).
+ * - `invited`: A new pending invitation was created and an email was sent.
+ * - `invitation_pending`: An open invitation for this user/email already
+ * existed; that invitation is returned unchanged.
+ * - `already_member`: The user is already a group member; no action was
+ * taken.
+ *
+ */
+export const GroupMemberInviteOutcome = {
+    ADDED: 'added',
+    INVITED: 'invited',
+    INVITATION_PENDING: 'invitation_pending',
+    ALREADY_MEMBER: 'already_member'
+} as const;
+
+/**
+ * Discriminator for the result of `POST /v3/groups/{id}/invitations`.
+ *
+ * - `added`: A new group membership was created (the invitee already
+ * follows the caller, so the invite/accept round trip was skipped).
+ * - `invited`: A new pending invitation was created and an email was sent.
+ * - `invitation_pending`: An open invitation for this user/email already
+ * existed; that invitation is returned unchanged.
+ * - `already_member`: The user is already a group member; no action was
+ * taken.
+ *
+ */
+export type GroupMemberInviteOutcome = typeof GroupMemberInviteOutcome[keyof typeof GroupMemberInviteOutcome];
+
+/**
+ * Result of `POST /v3/groups/{id}/invitations`. Inspect `outcome` to
+ * determine what happened; HTTP status mirrors it (`201` for created outcomes,
+ * `200` for no-op outcomes).
+ *
+ */
+export type GroupMemberInviteResponse = {
+    outcome: GroupMemberInviteOutcome;
+    /**
+     * The user that this request resolved to, when known. Null only when
+     * an invitation was issued by email and no matching user exists yet.
+     *
+     */
+    user: EmbeddedUser | null;
+    /**
+     * The invitation associated with this request, for `invited` and
+     * `invitation_pending` outcomes.
+     *
+     */
+    invitation: MembershipInvitation | null;
 };
 
 /**
@@ -1523,6 +1741,20 @@ export type ChannelOwner = ({
 } & EmbeddedGroup);
 
 /**
+ * User or Group that should own the channel.
+ */
+export type ChannelOwnerInput = {
+    /**
+     * ID of the User or Group to own the channel.
+     */
+    id: number;
+    /**
+     * Owner type. Defaults to User when omitted.
+     */
+    type?: 'User' | 'Group';
+};
+
+/**
  * Channel collaborator (User or Group)
  */
 export type ChannelCollaborator = ({
@@ -1554,6 +1786,28 @@ export type ChannelAbilities = {
 };
 
 /**
+ * Actions the current user can perform on the group
+ */
+export type GroupAbilities = {
+    /**
+     * Whether the user can update this group
+     */
+    update: boolean;
+    /**
+     * Whether the user can delete this group
+     */
+    destroy: boolean;
+    /**
+     * Whether the user can add/remove group members
+     */
+    manage_members: boolean;
+    /**
+     * Whether the user can create/revoke group invitations
+     */
+    manage_invitations: boolean;
+};
+
+/**
  * Counts of various items in the channel
  */
 export type ChannelCounts = {
@@ -1573,6 +1827,206 @@ export type ChannelCounts = {
      * Number of collaborators on the channel
      */
     collaborators: number;
+};
+
+/**
+ * The normalized activity kind. Encodes the actor's action and the item /
+ * target involved, so clients can render and switch on a single value
+ * rather than stitching together separate action and connector phrases.
+ *
+ * Kind determines the expected subject types:
+ * - `followed_user`: item=User, target=null, parent=null
+ * - `followed_channel`: item=Channel, target=null, parent=null
+ * - `followed_group`: item=Group, target=null, parent=null
+ * - `added_block_to_channel`: item=Block (Text/Image/Link/Attachment/Embed), target=Channel, parent=null
+ * - `added_channel_to_channel`: item=Channel, target=Channel, parent=null
+ * - `created_channel`: item=Channel, target=null, parent=null
+ * - `collaborating_with_user_on_channel`: item=User, target=Channel, parent=null
+ * - `collaborating_with_group_on_channel`: item=Group, target=Channel, parent=null
+ * - `commented_on_block`: item=Comment, target=Block, parent=Channel
+ * - `mentioned_you`: item=Comment, target=User, parent=Block
+ * - `added_user_to_group`: item=User, target=Group, parent=null
+ *
+ */
+export const ActivityKind = {
+    FOLLOWED_USER: 'followed_user',
+    FOLLOWED_CHANNEL: 'followed_channel',
+    FOLLOWED_GROUP: 'followed_group',
+    ADDED_BLOCK_TO_CHANNEL: 'added_block_to_channel',
+    ADDED_CHANNEL_TO_CHANNEL: 'added_channel_to_channel',
+    CREATED_CHANNEL: 'created_channel',
+    COLLABORATING_WITH_USER_ON_CHANNEL: 'collaborating_with_user_on_channel',
+    COLLABORATING_WITH_GROUP_ON_CHANNEL: 'collaborating_with_group_on_channel',
+    COMMENTED_ON_BLOCK: 'commented_on_block',
+    MENTIONED_YOU: 'mentioned_you',
+    ADDED_USER_TO_GROUP: 'added_user_to_group'
+} as const;
+
+/**
+ * The normalized activity kind. Encodes the actor's action and the item /
+ * target involved, so clients can render and switch on a single value
+ * rather than stitching together separate action and connector phrases.
+ *
+ * Kind determines the expected subject types:
+ * - `followed_user`: item=User, target=null, parent=null
+ * - `followed_channel`: item=Channel, target=null, parent=null
+ * - `followed_group`: item=Group, target=null, parent=null
+ * - `added_block_to_channel`: item=Block (Text/Image/Link/Attachment/Embed), target=Channel, parent=null
+ * - `added_channel_to_channel`: item=Channel, target=Channel, parent=null
+ * - `created_channel`: item=Channel, target=null, parent=null
+ * - `collaborating_with_user_on_channel`: item=User, target=Channel, parent=null
+ * - `collaborating_with_group_on_channel`: item=Group, target=Channel, parent=null
+ * - `commented_on_block`: item=Comment, target=Block, parent=Channel
+ * - `mentioned_you`: item=Comment, target=User, parent=Block
+ * - `added_user_to_group`: item=User, target=Group, parent=null
+ *
+ */
+export type ActivityKind = typeof ActivityKind[keyof typeof ActivityKind];
+
+/**
+ * User or group who performed the activity.
+ */
+export type ActivityActor = ({
+    type: 'User';
+} & EmbeddedUser) | ({
+    type: 'Group';
+} & EmbeddedGroup);
+
+/**
+ * Resource involved in a feed activity.
+ */
+export type ActivitySubject = ({
+    type: 'User';
+} & EmbeddedUser) | ({
+    type: 'Group';
+} & EmbeddedGroup) | ({
+    type: 'Channel';
+} & Channel) | ({
+    type: 'Text';
+} & TextBlock) | ({
+    type: 'Image';
+} & ImageBlock) | ({
+    type: 'Link';
+} & LinkBlock) | ({
+    type: 'Attachment';
+} & AttachmentBlock) | ({
+    type: 'Embed';
+} & EmbedBlock) | ({
+    type: 'Comment';
+} & Comment);
+
+/**
+ * Common fields for feed activities and notifications.
+ */
+export type ActivityBase = {
+    /**
+     * Unique identifier for the underlying activity.
+     */
+    id: number;
+    /**
+     * When the activity occurred.
+     */
+    created_at: string;
+    kind: ActivityKind;
+    actor: ActivityActor;
+    item: ActivitySubject | null;
+    target: ActivitySubject | null;
+    parent: ActivitySubject | null;
+};
+
+/**
+ * A single feed activity.
+ */
+export type Activity = ActivityBase & {
+    type: 'Activity';
+};
+
+/**
+ * A notification feed activity with read state.
+ */
+export type Notification = ActivityBase & {
+    type: 'Notification';
+    /**
+     * Whether the authenticated user has read this notification.
+     */
+    is_read: boolean;
+};
+
+/**
+ * Cursor pagination metadata for the newest-first feeds. `next_cursor`
+ * pages toward older items (the "load more" direction); `prev_cursor`
+ * pages back toward newer items.
+ *
+ */
+export type CursorMeta = {
+    /**
+     * Maximum number of items requested.
+     */
+    limit: number;
+    /**
+     * Cursor for the next (older) page. Pass it back as the `next`
+     * parameter to continue paging toward older items. Null when no
+     * older items remain.
+     *
+     */
+    next_cursor: string | null;
+    /**
+     * Cursor for the previous (newer) page. Pass it back as the `prev`
+     * parameter to page toward newer items. Null when this page is
+     * empty.
+     *
+     */
+    prev_cursor: string | null;
+    /**
+     * Whether more (older) items exist beyond this page, reachable via
+     * `next_cursor`.
+     *
+     */
+    has_more: boolean;
+};
+
+/**
+ * Cursor-paginated feed response.
+ */
+export type FeedListResponse = {
+    meta: CursorMeta;
+    data: Array<Activity>;
+};
+
+/**
+ * Cursor-paginated notification feed response.
+ */
+export type NotificationListResponse = {
+    meta: CursorMeta;
+    data: Array<Notification>;
+};
+
+/**
+ * The authenticated user's unread notification state after a mutation.
+ */
+export type NotificationReadMeta = {
+    /**
+     * Number of unread notifications remaining.
+     */
+    notifications: number;
+};
+
+/**
+ * Response to marking a single notification as read. Returns the updated
+ * notification alongside the new unread count, so clients can refresh
+ * both list state and badge without a follow-up request.
+ *
+ */
+export type NotificationReadResponse = {
+    meta: NotificationReadMeta;
+    data: Notification;
+};
+
+/**
+ * Response to marking all notifications as read.
+ */
+export type NotificationsReadAllResponse = {
+    meta: NotificationReadMeta;
 };
 
 /**
@@ -1775,6 +2229,26 @@ export type ChannelContentSortParam = ChannelContentSort;
  */
 export type ContentTypeFilterParam = ContentTypeFilter;
 
+/**
+ * Number of feed items to return (max 100)
+ */
+export type LimitParam = number;
+
+/**
+ * Load the **next** page (toward older items — the "load more"
+ * direction, since feeds are ordered newest-first). Pass back the
+ * `meta.next_cursor` from a previous response.
+ *
+ */
+export type CursorNextParam = string;
+
+/**
+ * Load the **previous** page (toward newer items). Pass back the
+ * `meta.prev_cursor` from a previous response.
+ *
+ */
+export type CursorPrevParam = string;
+
 export type CreateOAuthTokenData = {
     body: {
         /**
@@ -1915,6 +2389,10 @@ export type GetPingData = {
 
 export type GetPingErrors = {
     /**
+     * Request timeout - the request took too long to process and was canceled
+     */
+    408: Error;
+    /**
      * Rate limit exceeded
      */
     429: RateLimitError;
@@ -1961,6 +2439,10 @@ export type PresignUploadErrors = {
      * Unauthorized
      */
     401: Error;
+    /**
+     * Request timeout - the request took too long to process and was canceled
+     */
+    408: Error;
     /**
      * Rate limit exceeded
      */
@@ -2016,6 +2498,10 @@ export type CreateBlockErrors = {
      */
     404: Error;
     /**
+     * Request timeout - the request took too long to process and was canceled
+     */
+    408: Error;
+    /**
      * Rate limit exceeded
      */
     429: RateLimitError;
@@ -2063,6 +2549,10 @@ export type BatchCreateBlocksErrors = {
      */
     404: Error;
     /**
+     * Request timeout - the request took too long to process and was canceled
+     */
+    408: Error;
+    /**
      * Validation failed - the request was well-formed but contained semantic errors
      */
     422: Error;
@@ -2109,6 +2599,10 @@ export type GetBatchStatusErrors = {
      */
     404: Error;
     /**
+     * Request timeout - the request took too long to process and was canceled
+     */
+    408: Error;
+    /**
      * Rate limit exceeded
      */
     429: RateLimitError;
@@ -2150,6 +2644,10 @@ export type GetBlockErrors = {
      * Resource not found
      */
     404: Error;
+    /**
+     * Request timeout - the request took too long to process and was canceled
+     */
+    408: Error;
     /**
      * Rate limit exceeded
      */
@@ -2220,6 +2718,10 @@ export type UpdateBlockErrors = {
      */
     404: Error;
     /**
+     * Request timeout - the request took too long to process and was canceled
+     */
+    408: Error;
+    /**
      * Validation failed - the request was well-formed but contained semantic errors
      */
     422: Error;
@@ -2283,6 +2785,10 @@ export type GetBlockConnectionsErrors = {
      */
     404: Error;
     /**
+     * Request timeout - the request took too long to process and was canceled
+     */
+    408: Error;
+    /**
      * Rate limit exceeded
      */
     429: RateLimitError;
@@ -2338,6 +2844,10 @@ export type GetBlockCommentsErrors = {
      */
     404: Error;
     /**
+     * Request timeout - the request took too long to process and was canceled
+     */
+    408: Error;
+    /**
      * Rate limit exceeded
      */
     429: RateLimitError;
@@ -2389,6 +2899,10 @@ export type CreateBlockCommentErrors = {
      */
     404: Error;
     /**
+     * Request timeout - the request took too long to process and was canceled
+     */
+    408: Error;
+    /**
      * Validation failed - the request was well-formed but contained semantic errors
      */
     422: Error;
@@ -2435,6 +2949,10 @@ export type DeleteCommentErrors = {
      */
     404: Error;
     /**
+     * Request timeout - the request took too long to process and was canceled
+     */
+    408: Error;
+    /**
      * Rate limit exceeded
      */
     429: RateLimitError;
@@ -2463,11 +2981,12 @@ export type CreateChannelData = {
          */
         description?: string;
         /**
-         * Group ID to create the channel under. The authenticated user must be a member of the group.
-         * If not provided, the channel is owned by the authenticated user.
+         * User or Group to own the channel. The authenticated user must be able to assign authorship
+         * to the owner: themselves, or a group they belong to. If not provided, the channel is owned
+         * by the authenticated user.
          *
          */
-        group_id?: number;
+        owner?: ChannelOwnerInput;
         /**
          * Custom key-value metadata to set on the new channel.
          */
@@ -2491,6 +3010,10 @@ export type CreateChannelErrors = {
      * Forbidden - insufficient permissions to access this resource
      */
     403: Error;
+    /**
+     * Request timeout - the request took too long to process and was canceled
+     */
+    408: Error;
     /**
      * Validation failed - the request was well-formed but contained semantic errors
      */
@@ -2538,6 +3061,10 @@ export type DeleteChannelErrors = {
      */
     404: Error;
     /**
+     * Request timeout - the request took too long to process and was canceled
+     */
+    408: Error;
+    /**
      * Rate limit exceeded
      */
     429: RateLimitError;
@@ -2580,6 +3107,10 @@ export type GetChannelErrors = {
      */
     404: Error;
     /**
+     * Request timeout - the request took too long to process and was canceled
+     */
+    408: Error;
+    /**
      * Rate limit exceeded
      */
     429: RateLimitError;
@@ -2607,6 +3138,12 @@ export type UpdateChannelData = {
          * Channel description (supports markdown). Pass null to clear.
          */
         description?: string | null;
+        /**
+         * User or Group to own the channel. The authenticated user must be able to assign authorship
+         * to the owner: themselves, or a group they belong to.
+         *
+         */
+        owner?: ChannelOwnerInput;
         /**
          * Custom key-value metadata. Uses merge semantics: new keys are added,
          * existing keys are updated, keys set to null are removed.
@@ -2641,6 +3178,10 @@ export type UpdateChannelErrors = {
      * Resource not found
      */
     404: Error;
+    /**
+     * Request timeout - the request took too long to process and was canceled
+     */
+    408: Error;
     /**
      * Validation failed - the request was well-formed but contained semantic errors
      */
@@ -2709,6 +3250,10 @@ export type CreateConnectionErrors = {
      */
     404: Error;
     /**
+     * Request timeout - the request took too long to process and was canceled
+     */
+    408: Error;
+    /**
      * Validation failed - the request was well-formed but contained semantic errors
      */
     422: Error;
@@ -2757,6 +3302,10 @@ export type DeleteConnectionErrors = {
      */
     404: Error;
     /**
+     * Request timeout - the request took too long to process and was canceled
+     */
+    408: Error;
+    /**
      * Rate limit exceeded
      */
     429: RateLimitError;
@@ -2798,6 +3347,10 @@ export type GetConnectionErrors = {
      * Resource not found
      */
     404: Error;
+    /**
+     * Request timeout - the request took too long to process and was canceled
+     */
+    408: Error;
     /**
      * Rate limit exceeded
      */
@@ -2851,6 +3404,10 @@ export type UpdateConnectionErrors = {
      * Resource not found
      */
     404: Error;
+    /**
+     * Request timeout - the request took too long to process and was canceled
+     */
+    408: Error;
     /**
      * Validation failed - the request was well-formed but contained semantic errors
      */
@@ -2907,6 +3464,10 @@ export type MoveConnectionErrors = {
      * Resource not found
      */
     404: Error;
+    /**
+     * Request timeout - the request took too long to process and was canceled
+     */
+    408: Error;
     /**
      * Validation failed - the request was well-formed but contained semantic errors
      */
@@ -2973,6 +3534,10 @@ export type GetChannelContentsErrors = {
      */
     404: Error;
     /**
+     * Request timeout - the request took too long to process and was canceled
+     */
+    408: Error;
+    /**
      * Rate limit exceeded
      */
     429: RateLimitError;
@@ -3027,6 +3592,10 @@ export type GetChannelConnectionsErrors = {
      * Resource not found
      */
     404: Error;
+    /**
+     * Request timeout - the request took too long to process and was canceled
+     */
+    408: Error;
     /**
      * Rate limit exceeded
      */
@@ -3083,6 +3652,10 @@ export type GetChannelFollowersErrors = {
      */
     404: Error;
     /**
+     * Request timeout - the request took too long to process and was canceled
+     */
+    408: Error;
+    /**
      * Rate limit exceeded
      */
     429: RateLimitError;
@@ -3112,6 +3685,10 @@ export type GetCurrentUserErrors = {
      */
     401: Error;
     /**
+     * Request timeout - the request took too long to process and was canceled
+     */
+    408: Error;
+    /**
      * Rate limit exceeded
      */
     429: RateLimitError;
@@ -3123,10 +3700,199 @@ export type GetCurrentUserResponses = {
     /**
      * Current user details
      */
-    200: User;
+    200: Me;
 };
 
 export type GetCurrentUserResponse = GetCurrentUserResponses[keyof GetCurrentUserResponses];
+
+export type GetMyFeedData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Number of feed items to return (max 100)
+         */
+        limit?: number;
+        /**
+         * Load the **next** page (toward older items — the "load more"
+         * direction, since feeds are ordered newest-first). Pass back the
+         * `meta.next_cursor` from a previous response.
+         *
+         */
+        next?: string;
+        /**
+         * Load the **previous** page (toward newer items). Pass back the
+         * `meta.prev_cursor` from a previous response.
+         *
+         */
+        prev?: string;
+    };
+    url: '/v3/me/feed';
+};
+
+export type GetMyFeedErrors = {
+    /**
+     * Unauthorized
+     */
+    401: Error;
+    /**
+     * Request timeout - the request took too long to process and was canceled
+     */
+    408: Error;
+    /**
+     * Rate limit exceeded
+     */
+    429: RateLimitError;
+};
+
+export type GetMyFeedError = GetMyFeedErrors[keyof GetMyFeedErrors];
+
+export type GetMyFeedResponses = {
+    /**
+     * Current user's feed
+     */
+    200: FeedListResponse;
+};
+
+export type GetMyFeedResponse = GetMyFeedResponses[keyof GetMyFeedResponses];
+
+export type GetMyNotificationsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Number of feed items to return (max 100)
+         */
+        limit?: number;
+        /**
+         * Load the **next** page (toward older items — the "load more"
+         * direction, since feeds are ordered newest-first). Pass back the
+         * `meta.next_cursor` from a previous response.
+         *
+         */
+        next?: string;
+        /**
+         * Load the **previous** page (toward newer items). Pass back the
+         * `meta.prev_cursor` from a previous response.
+         *
+         */
+        prev?: string;
+        /**
+         * When true, only unread notifications are returned.
+         */
+        unread?: boolean;
+    };
+    url: '/v3/me/notifications';
+};
+
+export type GetMyNotificationsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: Error;
+    /**
+     * Request timeout - the request took too long to process and was canceled
+     */
+    408: Error;
+    /**
+     * Rate limit exceeded
+     */
+    429: RateLimitError;
+};
+
+export type GetMyNotificationsError = GetMyNotificationsErrors[keyof GetMyNotificationsErrors];
+
+export type GetMyNotificationsResponses = {
+    /**
+     * Current user's notifications
+     */
+    200: NotificationListResponse;
+};
+
+export type GetMyNotificationsResponse = GetMyNotificationsResponses[keyof GetMyNotificationsResponses];
+
+export type MarkAllMyNotificationsReadData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/v3/me/notifications/read';
+};
+
+export type MarkAllMyNotificationsReadErrors = {
+    /**
+     * Unauthorized
+     */
+    401: Error;
+    /**
+     * Forbidden - insufficient permissions to access this resource
+     */
+    403: Error;
+    /**
+     * Request timeout - the request took too long to process and was canceled
+     */
+    408: Error;
+    /**
+     * Rate limit exceeded
+     */
+    429: RateLimitError;
+};
+
+export type MarkAllMyNotificationsReadError = MarkAllMyNotificationsReadErrors[keyof MarkAllMyNotificationsReadErrors];
+
+export type MarkAllMyNotificationsReadResponses = {
+    /**
+     * Notifications marked as read
+     */
+    200: NotificationsReadAllResponse;
+};
+
+export type MarkAllMyNotificationsReadResponse = MarkAllMyNotificationsReadResponses[keyof MarkAllMyNotificationsReadResponses];
+
+export type MarkMyNotificationReadData = {
+    body?: never;
+    path: {
+        /**
+         * Activity id returned by the notifications feed.
+         */
+        id: number;
+    };
+    query?: never;
+    url: '/v3/me/notifications/{id}/read';
+};
+
+export type MarkMyNotificationReadErrors = {
+    /**
+     * Unauthorized
+     */
+    401: Error;
+    /**
+     * Forbidden - insufficient permissions to access this resource
+     */
+    403: Error;
+    /**
+     * Resource not found
+     */
+    404: Error;
+    /**
+     * Request timeout - the request took too long to process and was canceled
+     */
+    408: Error;
+    /**
+     * Rate limit exceeded
+     */
+    429: RateLimitError;
+};
+
+export type MarkMyNotificationReadError = MarkMyNotificationReadErrors[keyof MarkMyNotificationReadErrors];
+
+export type MarkMyNotificationReadResponses = {
+    /**
+     * Notification marked as read
+     */
+    200: NotificationReadResponse;
+};
+
+export type MarkMyNotificationReadResponse = MarkMyNotificationReadResponses[keyof MarkMyNotificationReadResponses];
 
 export type GetUserData = {
     body?: never;
@@ -3153,6 +3919,10 @@ export type GetUserErrors = {
      * Resource not found
      */
     404: Error;
+    /**
+     * Request timeout - the request took too long to process and was canceled
+     */
+    408: Error;
     /**
      * Rate limit exceeded
      */
@@ -3213,6 +3983,10 @@ export type GetUserContentsErrors = {
      */
     404: Error;
     /**
+     * Request timeout - the request took too long to process and was canceled
+     */
+    408: Error;
+    /**
      * Rate limit exceeded
      */
     429: RateLimitError;
@@ -3267,6 +4041,10 @@ export type GetUserFollowersErrors = {
      * Resource not found
      */
     404: Error;
+    /**
+     * Request timeout - the request took too long to process and was canceled
+     */
+    408: Error;
     /**
      * Rate limit exceeded
      */
@@ -3327,6 +4105,10 @@ export type GetUserFollowingErrors = {
      */
     404: Error;
     /**
+     * Request timeout - the request took too long to process and was canceled
+     */
+    408: Error;
+    /**
      * Rate limit exceeded
      */
     429: RateLimitError;
@@ -3382,6 +4164,10 @@ export type GetUserGroupsErrors = {
      */
     404: Error;
     /**
+     * Request timeout - the request took too long to process and was canceled
+     */
+    408: Error;
+    /**
      * Rate limit exceeded
      */
     429: RateLimitError;
@@ -3397,6 +4183,110 @@ export type GetUserGroupsResponses = {
 };
 
 export type GetUserGroupsResponse = GetUserGroupsResponses[keyof GetUserGroupsResponses];
+
+export type CreateGroupData = {
+    body: {
+        /**
+         * Group name
+         */
+        name: string;
+        /**
+         * Group description (supports markdown)
+         */
+        description?: string;
+        /**
+         * URL of an avatar image to fetch asynchronously.
+         */
+        avatar_url?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/v3/groups';
+};
+
+export type CreateGroupErrors = {
+    /**
+     * Validation error
+     */
+    400: Error;
+    /**
+     * Unauthorized
+     */
+    401: Error;
+    /**
+     * Forbidden - insufficient permissions to access this resource
+     */
+    403: Error;
+    /**
+     * Request timeout - the request took too long to process and was canceled
+     */
+    408: Error;
+    /**
+     * Validation failed - the request was well-formed but contained semantic errors
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded
+     */
+    429: RateLimitError;
+};
+
+export type CreateGroupError = CreateGroupErrors[keyof CreateGroupErrors];
+
+export type CreateGroupResponses = {
+    /**
+     * Group created successfully
+     */
+    201: Group;
+};
+
+export type CreateGroupResponse = CreateGroupResponses[keyof CreateGroupResponses];
+
+export type DeleteGroupData = {
+    body?: never;
+    path: {
+        /**
+         * Resource ID or slug
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/v3/groups/{id}';
+};
+
+export type DeleteGroupErrors = {
+    /**
+     * Unauthorized
+     */
+    401: Error;
+    /**
+     * Forbidden - insufficient permissions to access this resource
+     */
+    403: Error;
+    /**
+     * Resource not found
+     */
+    404: Error;
+    /**
+     * Request timeout - the request took too long to process and was canceled
+     */
+    408: Error;
+    /**
+     * Rate limit exceeded
+     */
+    429: RateLimitError;
+};
+
+export type DeleteGroupError = DeleteGroupErrors[keyof DeleteGroupErrors];
+
+export type DeleteGroupResponses = {
+    /**
+     * Group deleted successfully
+     */
+    204: void;
+};
+
+export type DeleteGroupResponse = DeleteGroupResponses[keyof DeleteGroupResponses];
 
 export type GetGroupData = {
     body?: never;
@@ -3424,6 +4314,10 @@ export type GetGroupErrors = {
      */
     404: Error;
     /**
+     * Request timeout - the request took too long to process and was canceled
+     */
+    408: Error;
+    /**
      * Rate limit exceeded
      */
     429: RateLimitError;
@@ -3439,6 +4333,603 @@ export type GetGroupResponses = {
 };
 
 export type GetGroupResponse = GetGroupResponses[keyof GetGroupResponses];
+
+export type UpdateGroupData = {
+    body: {
+        /**
+         * Group name
+         */
+        name?: string;
+        /**
+         * Group description (supports markdown). Pass null to clear.
+         */
+        description?: string | null;
+        /**
+         * URL of an avatar image to fetch asynchronously.
+         */
+        avatar_url?: string;
+    };
+    path: {
+        /**
+         * Resource ID or slug
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/v3/groups/{id}';
+};
+
+export type UpdateGroupErrors = {
+    /**
+     * Validation error
+     */
+    400: Error;
+    /**
+     * Unauthorized
+     */
+    401: Error;
+    /**
+     * Forbidden - insufficient permissions to access this resource
+     */
+    403: Error;
+    /**
+     * Resource not found
+     */
+    404: Error;
+    /**
+     * Request timeout - the request took too long to process and was canceled
+     */
+    408: Error;
+    /**
+     * Validation failed - the request was well-formed but contained semantic errors
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded
+     */
+    429: RateLimitError;
+};
+
+export type UpdateGroupError = UpdateGroupErrors[keyof UpdateGroupErrors];
+
+export type UpdateGroupResponses = {
+    /**
+     * Group updated successfully
+     */
+    200: Group;
+};
+
+export type UpdateGroupResponse = UpdateGroupResponses[keyof UpdateGroupResponses];
+
+export type GetGroupMembersData = {
+    body?: never;
+    path: {
+        /**
+         * Resource ID or slug
+         */
+        id: string;
+    };
+    query?: {
+        /**
+         * Page number for pagination
+         */
+        page?: number;
+        /**
+         * Number of items per page (max 100)
+         */
+        per?: number;
+    };
+    url: '/v3/groups/{id}/members';
+};
+
+export type GetGroupMembersErrors = {
+    /**
+     * Unauthorized
+     */
+    401: Error;
+    /**
+     * Forbidden - insufficient permissions to access this resource
+     */
+    403: Error;
+    /**
+     * Resource not found
+     */
+    404: Error;
+    /**
+     * Request timeout - the request took too long to process and was canceled
+     */
+    408: Error;
+    /**
+     * Rate limit exceeded
+     */
+    429: RateLimitError;
+};
+
+export type GetGroupMembersError = GetGroupMembersErrors[keyof GetGroupMembersErrors];
+
+export type GetGroupMembersResponses = {
+    /**
+     * List of group members
+     */
+    200: GroupMemberListResponse;
+};
+
+export type GetGroupMembersResponse = GetGroupMembersResponses[keyof GetGroupMembersResponses];
+
+export type JoinGroupData = {
+    body: {
+        /**
+         * The group's invite code, authorizing the authenticated user to join
+         */
+        invite_token?: string;
+    };
+    path: {
+        /**
+         * Resource ID or slug
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/v3/groups/{id}/members';
+};
+
+export type JoinGroupErrors = {
+    /**
+     * Unauthorized
+     */
+    401: Error;
+    /**
+     * Forbidden - insufficient permissions to access this resource
+     */
+    403: Error;
+    /**
+     * Resource not found
+     */
+    404: Error;
+    /**
+     * Request timeout - the request took too long to process and was canceled
+     */
+    408: Error;
+    /**
+     * Rate limit exceeded
+     */
+    429: RateLimitError;
+};
+
+export type JoinGroupError = JoinGroupErrors[keyof JoinGroupErrors];
+
+export type JoinGroupResponses = {
+    /**
+     * User was already the owner or a member
+     */
+    200: GroupMember;
+    /**
+     * User joined the group
+     */
+    201: GroupMember;
+};
+
+export type JoinGroupResponse = JoinGroupResponses[keyof JoinGroupResponses];
+
+export type LeaveGroupData = {
+    body?: never;
+    path: {
+        /**
+         * Resource ID or slug
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/v3/groups/{id}/members/me';
+};
+
+export type LeaveGroupErrors = {
+    /**
+     * Unauthorized
+     */
+    401: Error;
+    /**
+     * Forbidden - insufficient permissions to access this resource
+     */
+    403: Error;
+    /**
+     * Resource not found
+     */
+    404: Error;
+    /**
+     * Request timeout - the request took too long to process and was canceled
+     */
+    408: Error;
+    /**
+     * Rate limit exceeded
+     */
+    429: RateLimitError;
+};
+
+export type LeaveGroupError = LeaveGroupErrors[keyof LeaveGroupErrors];
+
+export type LeaveGroupResponses = {
+    /**
+     * User was removed from the group, or was not a member
+     */
+    204: void;
+};
+
+export type LeaveGroupResponse = LeaveGroupResponses[keyof LeaveGroupResponses];
+
+export type RemoveGroupMemberData = {
+    body?: never;
+    path: {
+        /**
+         * Resource ID or slug
+         */
+        id: string;
+        /**
+         * User ID of the group member to remove
+         */
+        user_id: number;
+    };
+    query?: never;
+    url: '/v3/groups/{id}/members/{user_id}';
+};
+
+export type RemoveGroupMemberErrors = {
+    /**
+     * Unauthorized
+     */
+    401: Error;
+    /**
+     * Forbidden - insufficient permissions to access this resource
+     */
+    403: Error;
+    /**
+     * Resource not found
+     */
+    404: Error;
+    /**
+     * Request timeout - the request took too long to process and was canceled
+     */
+    408: Error;
+    /**
+     * Rate limit exceeded
+     */
+    429: RateLimitError;
+};
+
+export type RemoveGroupMemberError = RemoveGroupMemberErrors[keyof RemoveGroupMemberErrors];
+
+export type RemoveGroupMemberResponses = {
+    /**
+     * Group member removed successfully
+     */
+    204: void;
+};
+
+export type RemoveGroupMemberResponse = RemoveGroupMemberResponses[keyof RemoveGroupMemberResponses];
+
+export type GetGroupInvitationsData = {
+    body?: never;
+    path: {
+        /**
+         * Resource ID or slug
+         */
+        id: string;
+    };
+    query?: {
+        /**
+         * Page number for pagination
+         */
+        page?: number;
+        /**
+         * Number of items per page (max 100)
+         */
+        per?: number;
+    };
+    url: '/v3/groups/{id}/invitations';
+};
+
+export type GetGroupInvitationsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: Error;
+    /**
+     * Forbidden - insufficient permissions to access this resource
+     */
+    403: Error;
+    /**
+     * Resource not found
+     */
+    404: Error;
+    /**
+     * Request timeout - the request took too long to process and was canceled
+     */
+    408: Error;
+    /**
+     * Rate limit exceeded
+     */
+    429: RateLimitError;
+};
+
+export type GetGroupInvitationsError = GetGroupInvitationsErrors[keyof GetGroupInvitationsErrors];
+
+export type GetGroupInvitationsResponses = {
+    /**
+     * List of pending invitations
+     */
+    200: MembershipInvitationListResponse;
+};
+
+export type GetGroupInvitationsResponse = GetGroupInvitationsResponses[keyof GetGroupInvitationsResponses];
+
+export type CreateGroupInvitationData = {
+    body: {
+        /**
+         * User ID to add or invite
+         */
+        user_id: number;
+    } | {
+        /**
+         * Email address to invite
+         */
+        email: string;
+    };
+    path: {
+        /**
+         * Resource ID or slug
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/v3/groups/{id}/invitations';
+};
+
+export type CreateGroupInvitationErrors = {
+    /**
+     * Bad request - missing or invalid parameters
+     */
+    400: Error;
+    /**
+     * Unauthorized
+     */
+    401: Error;
+    /**
+     * Forbidden - insufficient permissions to access this resource
+     */
+    403: Error;
+    /**
+     * Resource not found
+     */
+    404: Error;
+    /**
+     * Request timeout - the request took too long to process and was canceled
+     */
+    408: Error;
+    /**
+     * Validation failed - the request was well-formed but contained semantic errors
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded
+     */
+    429: RateLimitError;
+};
+
+export type CreateGroupInvitationError = CreateGroupInvitationErrors[keyof CreateGroupInvitationErrors];
+
+export type CreateGroupInvitationResponses = {
+    /**
+     * No action was needed. `outcome` is either `already_member` or
+     * `invitation_pending`.
+     *
+     */
+    200: GroupMemberInviteResponse;
+    /**
+     * A membership or invitation was created. `outcome` is either `added`
+     * or `invited`. The created resource (member or invitation) is
+     * included in the response body.
+     *
+     */
+    201: GroupMemberInviteResponse;
+};
+
+export type CreateGroupInvitationResponse = CreateGroupInvitationResponses[keyof CreateGroupInvitationResponses];
+
+export type RevokeGroupInvitationData = {
+    body?: never;
+    path: {
+        /**
+         * Resource ID or slug
+         */
+        id: string;
+        /**
+         * ID of the invitation to revoke
+         */
+        invitation_id: number;
+    };
+    query?: never;
+    url: '/v3/groups/{id}/invitations/{invitation_id}';
+};
+
+export type RevokeGroupInvitationErrors = {
+    /**
+     * Unauthorized
+     */
+    401: Error;
+    /**
+     * Forbidden - insufficient permissions to access this resource
+     */
+    403: Error;
+    /**
+     * Resource not found
+     */
+    404: Error;
+    /**
+     * Request timeout - the request took too long to process and was canceled
+     */
+    408: Error;
+    /**
+     * Validation failed - the request was well-formed but contained semantic errors
+     */
+    422: Error;
+    /**
+     * Rate limit exceeded
+     */
+    429: RateLimitError;
+};
+
+export type RevokeGroupInvitationError = RevokeGroupInvitationErrors[keyof RevokeGroupInvitationErrors];
+
+export type RevokeGroupInvitationResponses = {
+    /**
+     * Invitation revoked successfully
+     */
+    204: void;
+};
+
+export type RevokeGroupInvitationResponse = RevokeGroupInvitationResponses[keyof RevokeGroupInvitationResponses];
+
+export type DeleteGroupInviteData = {
+    body?: never;
+    path: {
+        /**
+         * Resource ID or slug
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/v3/groups/{id}/invite';
+};
+
+export type DeleteGroupInviteErrors = {
+    /**
+     * Unauthorized
+     */
+    401: Error;
+    /**
+     * Forbidden - insufficient permissions to access this resource
+     */
+    403: Error;
+    /**
+     * Resource not found
+     */
+    404: Error;
+    /**
+     * Request timeout - the request took too long to process and was canceled
+     */
+    408: Error;
+    /**
+     * Rate limit exceeded
+     */
+    429: RateLimitError;
+};
+
+export type DeleteGroupInviteError = DeleteGroupInviteErrors[keyof DeleteGroupInviteErrors];
+
+export type DeleteGroupInviteResponses = {
+    /**
+     * Group invite deleted, or no invite existed
+     */
+    204: void;
+};
+
+export type DeleteGroupInviteResponse = DeleteGroupInviteResponses[keyof DeleteGroupInviteResponses];
+
+export type GetGroupInviteData = {
+    body?: never;
+    path: {
+        /**
+         * Resource ID or slug
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/v3/groups/{id}/invite';
+};
+
+export type GetGroupInviteErrors = {
+    /**
+     * Unauthorized
+     */
+    401: Error;
+    /**
+     * Forbidden - insufficient permissions to access this resource
+     */
+    403: Error;
+    /**
+     * Resource not found
+     */
+    404: Error;
+    /**
+     * Request timeout - the request took too long to process and was canceled
+     */
+    408: Error;
+    /**
+     * Rate limit exceeded
+     */
+    429: RateLimitError;
+};
+
+export type GetGroupInviteError = GetGroupInviteErrors[keyof GetGroupInviteErrors];
+
+export type GetGroupInviteResponses = {
+    /**
+     * Group invite details
+     */
+    200: GroupInvite;
+};
+
+export type GetGroupInviteResponse = GetGroupInviteResponses[keyof GetGroupInviteResponses];
+
+export type CreateGroupInviteData = {
+    body?: never;
+    path: {
+        /**
+         * Resource ID or slug
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/v3/groups/{id}/invite';
+};
+
+export type CreateGroupInviteErrors = {
+    /**
+     * Unauthorized
+     */
+    401: Error;
+    /**
+     * Forbidden - insufficient permissions to access this resource
+     */
+    403: Error;
+    /**
+     * Resource not found
+     */
+    404: Error;
+    /**
+     * Request timeout - the request took too long to process and was canceled
+     */
+    408: Error;
+    /**
+     * Rate limit exceeded
+     */
+    429: RateLimitError;
+};
+
+export type CreateGroupInviteError = CreateGroupInviteErrors[keyof CreateGroupInviteErrors];
+
+export type CreateGroupInviteResponses = {
+    /**
+     * Group invite already existed
+     */
+    200: GroupInvite;
+    /**
+     * Group invite created
+     */
+    201: GroupInvite;
+};
+
+export type CreateGroupInviteResponse = CreateGroupInviteResponses[keyof CreateGroupInviteResponses];
 
 export type GetGroupContentsData = {
     body?: never;
@@ -3482,6 +4973,10 @@ export type GetGroupContentsErrors = {
      * Resource not found
      */
     404: Error;
+    /**
+     * Request timeout - the request took too long to process and was canceled
+     */
+    408: Error;
     /**
      * Rate limit exceeded
      */
@@ -3537,6 +5032,10 @@ export type GetGroupFollowersErrors = {
      * Resource not found
      */
     404: Error;
+    /**
+     * Request timeout - the request took too long to process and was canceled
+     */
+    408: Error;
     /**
      * Rate limit exceeded
      */
@@ -3641,6 +5140,10 @@ export type SearchErrors = {
      * Premium subscription required
      */
     403: Error;
+    /**
+     * Request timeout - the request took too long to process and was canceled
+     */
+    408: Error;
     /**
      * Rate limit exceeded
      */
