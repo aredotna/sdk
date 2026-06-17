@@ -59,7 +59,7 @@ jobs:
             core.setOutput("should_release", "true");
             core.setOutput("bump", matched[0]);
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         if: steps.release_meta.outputs.should_release == 'true'
         with:
           ref: main
@@ -81,15 +81,15 @@ jobs:
             exit 1
           fi
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         if: steps.release_meta.outputs.should_release == 'true'
         with:
           version: 10.33.2
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         if: steps.release_meta.outputs.should_release == 'true'
         with:
-          node-version: 20
+          node-version: 24
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
