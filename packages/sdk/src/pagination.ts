@@ -14,6 +14,7 @@ export interface CursorPaginatedResponse {
   meta?: {
     has_more?: boolean;
     next_cursor?: string | null;
+    prev_cursor?: string | null;
   };
 }
 
@@ -53,7 +54,9 @@ export async function* paginateCursor<
   operation: CursorOperation<TParams, TPage>,
   params: TParams,
 ): AsyncGenerator<TPage, void, unknown> {
-  let next = params.query?.next;
+  const direction =
+    params.query?.next !== undefined || params.query?.prev === undefined ? "next" : "prev";
+  let cursor = params.query?.[direction];
   const { next: _next, prev: _prev, ...query } = params.query ?? {};
 
   while (true) {
@@ -61,16 +64,18 @@ export async function* paginateCursor<
       ...params,
       query: {
         ...query,
-        next,
+        [direction]: cursor,
       },
     });
 
     yield result;
 
-    if (result.meta?.has_more === false || !result.meta?.next_cursor) {
+    const nextCursor = direction === "next" ? result.meta?.next_cursor : result.meta?.prev_cursor;
+
+    if ((direction === "next" && result.meta?.has_more === false) || !nextCursor) {
       return;
     }
 
-    next = result.meta.next_cursor;
+    cursor = nextCursor;
   }
 }
