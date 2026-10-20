@@ -1,12 +1,14 @@
-import type { RateLimitInfo } from "./rate-limit";
+import { parseRetryAfter, type RateLimitInfo } from "./rate-limit";
 
 export interface ArenaApiErrorOptions {
   cause?: unknown;
+  code?: number;
   details?: unknown;
   error?: string;
   rateLimit?: RateLimitInfo;
   request?: Request;
   response?: Response;
+  retryAfter?: Date;
   status: number;
 }
 
@@ -46,7 +48,7 @@ export class ArenaApiError extends ArenaError {
     this.error = options.error;
     this.details = options.details;
     this.rateLimit = options.rateLimit;
-    this.code = typeof options.details === "object" ? undefined : undefined;
+    this.code = options.code;
   }
 }
 
@@ -60,7 +62,8 @@ export class ArenaRateLimitError extends ArenaApiError {
 
   constructor(message: string, options: ArenaApiErrorOptions) {
     super(message, options);
-    this.retryAfter = options.rateLimit?.reset;
+    this.retryAfter =
+      options.retryAfter ?? parseRetryAfter(options.response?.headers, options.rateLimit?.reset);
   }
 }
 
@@ -85,16 +88,18 @@ export const createArenaError = ({
   const message =
     normalized.message ??
     normalized.error ??
-    response.statusText ??
+    (response.statusText || undefined) ??
     `Are.na API request failed with status ${response.status}.`;
 
   const options: ArenaApiErrorOptions = {
     cause,
+    code: normalized.code,
     details: normalized.details,
     error: normalized.error,
     rateLimit,
     request,
     response,
+    retryAfter: parseRetryAfter(response.headers, rateLimit?.reset, normalized.retryAfterSeconds),
     status: response.status,
   };
 
@@ -121,15 +126,25 @@ const normalizeErrorBody = (body: unknown) => {
 
   if (body && typeof body === "object") {
     const record = body as Record<string, unknown>;
-    const details = record.details;
+    const nestedError =
+      record.error && typeof record.error === "object"
+        ? (record.error as Record<string, unknown>)
+        : undefined;
+    const details = record.details ?? nestedError;
     const nestedMessage =
       details && typeof details === "object"
         ? (details as Record<string, unknown>).message
         : undefined;
 
     return {
+      code: typeof record.code === "number" ? record.code : undefined,
       details,
-      error: typeof record.error === "string" ? record.error : undefined,
+      error:
+        typeof record.error === "string"
+          ? record.error
+          : typeof nestedError?.type === "string"
+            ? nestedError.type
+            : undefined,
       message:
         typeof nestedMessage === "string"
           ? nestedMessage
@@ -138,6 +153,7 @@ const normalizeErrorBody = (body: unknown) => {
             : typeof record.message === "string"
               ? record.message
               : undefined,
+      retryAfterSeconds: nestedError?.retry_after,
     };
   }
 

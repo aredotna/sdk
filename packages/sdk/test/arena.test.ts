@@ -34,6 +34,12 @@ describe("createArena", () => {
     });
 
     await expect(arena.channels.get("missing")).rejects.toBeInstanceOf(ArenaNotFoundError);
+    await expect(arena.channels.get("missing")).rejects.toMatchObject({
+      code: 404,
+      details: { message: "The resource you requested does not exist" },
+      error: "Not Found",
+      message: "The resource you requested does not exist",
+    });
   });
 
   it("updates a group member's role with authentication and request overrides", async () => {
