@@ -28,7 +28,8 @@ const firstPage = await arena.channels.contents(channel.slug, { per: 24 });
 ## Authentication
 
 Most public data can be read without a token. Authenticated requests can see private content
-you have access to and can create, update, or delete resources.
+you have access to. Creating, updating, or deleting resources requires a token with `write`
+scope; tokens default to `read` scope.
 
 Use a personal access token from
 [are.na/settings/personal-access-tokens](https://www.are.na/settings/personal-access-tokens):
@@ -67,6 +68,41 @@ await arena.connections.create({
 await arena.users.get("damon-zucconi");
 await arena.groups.get("some-group");
 ```
+
+## Group Roles
+
+Groups assign new members a `default_role`, which defaults to `member`. Set it when creating
+or updating a group:
+
+```ts
+await arena.groups.create({ name: "Studio", default_role: "viewer" });
+await arena.groups.update("studio", { default_role: "member" });
+await arena.groups.updateMember("studio", 42, { role: "admin" });
+```
+
+`viewer` can see the group's channels, including private channels. `member` can also write
+to the group's channels and invite members. `admin` can additionally manage the group and
+its members. Only admins and the owner can change member roles. The owner appears with
+`role: "owner"` in member lists and cannot be changed through `updateMember`.
+
+Import the `GroupMembershipRole` type from `@aredotna/sdk` when typing your own role inputs.
+
+## Block Covers
+
+Set `cover_url` when creating Link, Attachment, or Embed blocks to override the generated
+preview image:
+
+```ts
+await arena.blocks.create({
+  value: "https://example.com/article",
+  cover_url: "https://example.com/cover.jpg",
+  channels: [{ id: 123 }],
+});
+```
+
+Batch entries in `arena.blocks.batchCreate()` and the `block` options in
+`arena.uploads.createBlock()` accept `cover_url` too. Image and Text blocks ignore it.
+The current API schema does not expose cover changes through `arena.blocks.update()`.
 
 ## Pagination
 
@@ -230,7 +266,8 @@ try {
   await arena.channels.get("private-channel");
 } catch (error) {
   if (error instanceof ArenaRateLimitError) {
-    console.log(error.retryAfter);
+    console.log(error.message, error.retryAfter, error.rateLimit?.bucket);
+    console.log(error.details); // Includes the API's budget details and suggestions.
   } else if (error instanceof ArenaApiError) {
     console.log(error.status, error.details);
   }
@@ -242,7 +279,15 @@ Rate-limit headers are captured on the Arena instance:
 ```ts
 await arena.ping();
 console.log(arena.rateLimit?.tier, arena.rateLimit?.limit);
+console.log(arena.rateLimit?.bucket, arena.rateLimit?.remaining, arena.rateLimit?.cost);
 ```
+
+Reads and writes have separate budgets: `read-minute`, `write-minute`, and `write-hour`.
+The captured `limit`, `remaining`, `window` (seconds), and `reset` (Date) describe the binding
+bucket on the latest response with rate-limit headers. `cost` is the request's budget cost;
+`policy` contains the API's budget policy string. These fields are optional and describe one
+response, not a complete account-wide budget snapshot. An error's `rateLimit` describes only
+that error response.
 
 Opt into automatic 429 retry:
 
@@ -251,6 +296,22 @@ const arena = createArena({
   retry: { respectRateLimits: true, maxRetries: 1 },
 });
 ```
+
+Automatic retries are disabled by default. When enabled, the SDK uses `Retry-After` first,
+then `X-RateLimit-Reset`, then the error body's `retry_after` seconds. If none is available,
+it retries immediately, up to `maxRetries`. Hourly limits can cause long waits; aborting the
+request also cancels the wait:
+
+```ts
+const controller = new AbortController();
+const request = arena.groups.updateMember("studio", 42, { role: "viewer" }, {
+  signal: controller.signal,
+});
+// Call controller.abort() when the operation is no longer needed.
+await request;
+```
+
+`ArenaRateLimitError.retryAfter` is a Date calculated using the same timing precedence.
 
 ## React
 

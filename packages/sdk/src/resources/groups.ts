@@ -15,6 +15,7 @@ import {
   removeGroupMember,
   revokeGroupInvitation,
   updateGroup,
+  updateGroupMember,
 } from "../generated/sdk.gen";
 import type {
   CreateGroupData,
@@ -25,6 +26,7 @@ import type {
   GetGroupMembersData,
   JoinGroupData,
   UpdateGroupData,
+  UpdateGroupMemberData,
 } from "../generated/types.gen";
 import { paginate } from "../pagination";
 import { data, type RequestOverrides, type ResourceContext, withClient } from "./shared";
@@ -32,6 +34,7 @@ import { data, type RequestOverrides, type ResourceContext, withClient } from ".
 export type GroupId = string | number;
 export type CreateGroupInput = CreateGroupData["body"];
 export type UpdateGroupInput = UpdateGroupData["body"];
+export type UpdateGroupMemberInput = UpdateGroupMemberData["body"];
 export type JoinGroupInput = JoinGroupData["body"];
 export type GroupInviteInput = CreateGroupInvitationData["body"];
 export type GroupContentsOptions = NonNullable<GetGroupContentsData["query"]>;
@@ -82,6 +85,18 @@ export const createGroupsResource = ({ client }: ResourceContext) => ({
   removeMember: (id: GroupId, userId: number, options?: RequestOverrides) =>
     data(
       removeGroupMember(withClient(client, { path: { id: String(id), user_id: userId } }, options)),
+    ),
+
+  updateMember: (
+    id: GroupId,
+    userId: number,
+    body: UpdateGroupMemberInput,
+    options?: RequestOverrides,
+  ) =>
+    data(
+      updateGroupMember(
+        withClient(client, { body, path: { id: String(id), user_id: userId } }, options),
+      ),
     ),
 
   invitations: (id: GroupId, query?: GroupInvitationsOptions, options?: RequestOverrides) =>

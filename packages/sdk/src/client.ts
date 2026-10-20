@@ -6,7 +6,7 @@ import {
 } from "./generated/client";
 import type { RawClientOptions } from "./options";
 import { resolveAuthToken } from "./options";
-import { createRateLimitFetch, type MutableRateLimit } from "./rate-limit";
+import { createRateLimitFetch, type MutableRateLimit, parseRateLimitHeaders } from "./rate-limit";
 
 export type ArenaClient = Client;
 
@@ -47,7 +47,7 @@ export const createClientWithState = (options: RawClientOptions = {}): ClientWit
       createArenaError({
         cause: error,
         error,
-        rateLimit: rateLimit.current,
+        rateLimit: response ? parseRateLimitHeaders(response.headers) : undefined,
         request,
         response,
       }),

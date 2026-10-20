@@ -48,11 +48,11 @@ export type RateLimitError = {
          */
         tier: UserTier;
         /**
-         * Request limit per minute for this tier
+         * Binding request limit for this rejection
          */
         limit: number;
         /**
-         * Time window for rate limits
+         * Time window for the binding rate limit bucket
          */
         limit_window?: string;
         /**
@@ -62,6 +62,9 @@ export type RateLimitError = {
         current_status?: {
             tier?: string;
             limits?: {
+                [key: string]: unknown;
+            };
+            detailed_limits?: {
                 [key: string]: unknown;
             };
             upgrade_path?: {
@@ -146,6 +149,10 @@ export type EmbeddedUser = {
      * URL-safe identifier (use this in API paths)
      */
     slug: string;
+    /**
+     * User's username (either automatically generated or customized)
+     */
+    readonly username?: string | null;
     /**
      * URL to user's avatar image
      */
@@ -340,6 +347,10 @@ export type Group = EmbeddedGroup & {
      */
     description?: MarkdownContent | null;
     /**
+     * Role assigned to new members joining the group
+     */
+    default_role: GroupMembershipRole;
+    /**
      * When the group was created
      */
     created_at: string;
@@ -463,15 +474,38 @@ export type GroupInvite = {
 };
 
 /**
+ * The role a member has within a group. `viewer` can see the group's
+ * channels (including private ones) but not add to or edit them;
+ * `member` has full write access to the group's channels and can invite
+ * new members; `admin` can additionally manage the group and its members.
+ *
+ */
+export const GroupMembershipRole = {
+    VIEWER: 'viewer',
+    MEMBER: 'member',
+    ADMIN: 'admin'
+} as const;
+
+/**
+ * The role a member has within a group. `viewer` can see the group's
+ * channels (including private ones) but not add to or edit them;
+ * `member` has full write access to the group's channels and can invite
+ * new members; `admin` can additionally manage the group and its members.
+ *
+ */
+export type GroupMembershipRole = typeof GroupMembershipRole[keyof typeof GroupMembershipRole];
+
+/**
  * Group member entry, including the group owner and any collaborators
  */
 export type GroupMember = EmbeddedUser & {
     /**
      * The user's role on the group. `owner` is the group's creator;
-     * `member` is anyone else with a group membership.
+     * everyone else with a group membership has a `viewer`, `member`,
+     * or `admin` role.
      *
      */
-    role: 'owner' | 'member';
+    role: 'owner' | 'viewer' | 'member' | 'admin';
 };
 
 /**
@@ -1190,6 +1224,10 @@ export type BlockInput = {
      * Alt text for images (accessibility)
      */
     alt_text?: string;
+    /**
+     * Optional cover image URL to use as the visual preview for Link, Attachment, and Embed blocks (overrides the auto-generated screenshot/thumbnail). Ignored for Image and Text blocks.
+     */
+    cover_url?: string;
     /**
      * Custom key-value metadata to set on the new block.
      */
@@ -2181,6 +2219,757 @@ export type CommentListResponse = CommentList & PaginatedResponse;
 export type PingResponse = {
     status: 'ok';
 };
+
+/**
+ * Embedded user representation (used when user is nested in other resources)
+ */
+export type EmbeddedUserWritable = {
+    /**
+     * Unique identifier for the user
+     */
+    id: number;
+    /**
+     * User type
+     */
+    type: 'User';
+    /**
+     * User's display name
+     */
+    name: string;
+    /**
+     * URL-safe identifier (use this in API paths)
+     */
+    slug: string;
+    /**
+     * URL to user's avatar image
+     */
+    avatar: string | null;
+    /**
+     * User's initials
+     */
+    initials: string;
+};
+
+/**
+ * Embedded connection representation used when connection is nested in other resources
+ */
+export type EmbeddedConnectionWritable = {
+    /**
+     * Unique identifier for the connection
+     */
+    id: number;
+    /**
+     * Position of the item within the channel (1-indexed)
+     */
+    position: number;
+    /**
+     * Whether the item is pinned
+     */
+    pinned: boolean;
+    /**
+     * Custom key-value metadata
+     */
+    metadata?: Metadata | null;
+    /**
+     * When the item was connected
+     */
+    connected_at: string;
+    /**
+     * User who created this connection
+     */
+    connected_by: EmbeddedUserWritable | null;
+};
+
+/**
+ * Full connection resource with abilities and links.
+ * Used for GET /v3/connections/:id
+ *
+ */
+export type ConnectionWritable = EmbeddedConnectionWritable & {
+    can: ConnectionAbilities;
+    _links: Links;
+};
+
+/**
+ * Full user representation
+ */
+export type UserWritable = EmbeddedUserWritable & {
+    /**
+     * When the user was created
+     */
+    created_at: string;
+    /**
+     * When the user was last updated
+     */
+    updated_at: string;
+    /**
+     * User biography with markdown, HTML, and plain text renderings
+     */
+    bio?: MarkdownContent | null;
+    /**
+     * Denotes plan or other distinction
+     */
+    badge: UserBadge | null;
+    /**
+     * User's subscription tier
+     */
+    tier: UserTier;
+    counts: UserCounts;
+    /**
+     * HATEOAS links for navigation
+     */
+    _links: Links;
+};
+
+/**
+ * The authenticated user's own profile, returned by `GET /v3/me`.
+ * Extends `User` with the token holder's email address. This field is
+ * intentionally not present on `/v3/users/{id}` or on embedded `User`
+ * references nested in other resources.
+ *
+ */
+export type MeWritable = UserWritable & {
+    counts?: MeCounts;
+    /**
+     * The authenticated user's email address.
+     */
+    email: string;
+};
+
+/**
+ * Full group representation
+ */
+export type GroupWritable = EmbeddedGroup & {
+    /**
+     * Group description with markdown, HTML, and plain text renderings
+     */
+    description?: MarkdownContent | null;
+    /**
+     * Role assigned to new members joining the group
+     */
+    default_role: GroupMembershipRole;
+    /**
+     * When the group was created
+     */
+    created_at: string;
+    /**
+     * When the group was last updated
+     */
+    updated_at: string;
+    /**
+     * User who owns/created the group
+     */
+    user: EmbeddedUserWritable;
+    counts: GroupCounts;
+    /**
+     * Actions the current user can perform on the group
+     */
+    can: GroupAbilities;
+    /**
+     * HATEOAS links for navigation
+     */
+    _links: Links;
+};
+
+/**
+ * Pending invitation for a user to join a group.
+ *
+ * Invitee acceptance and decline currently happen through the Are.na web
+ * UI using tokenized invitation links sent by email. The web UI uses the
+ * GraphQL `acceptMembershipInvitation` and `declineMembershipInvitation`
+ * mutations; this REST surface only exposes group-manager list and revoke
+ * operations.
+ *
+ */
+export type MembershipInvitationWritable = {
+    /**
+     * Unique identifier for the invitation
+     */
+    id: number;
+    type: 'MembershipInvitation';
+    /**
+     * Group the invitee is invited to join
+     */
+    target: EmbeddedGroup;
+    /**
+     * User being invited, when available
+     */
+    invitee: EmbeddedUserWritable | null;
+    /**
+     * Email address being invited, visible to users who can manage invitations
+     */
+    invitee_email: string | null;
+    /**
+     * User who created the invitation
+     */
+    invited_by: EmbeddedUserWritable;
+    state: 'pending' | 'accepted' | 'declined' | 'revoked';
+    /**
+     * When the invitation was accepted
+     */
+    accepted_at: string | null;
+    /**
+     * When the invitation was created
+     */
+    created_at: string;
+    /**
+     * When the invitation was last updated
+     */
+    updated_at: string;
+    /**
+     * Links for navigation. Empty today because no public endpoint
+     * addresses an invitation directly; reserved for future use.
+     *
+     */
+    _links: {
+        [key: string]: unknown;
+    };
+};
+
+/**
+ * Group member entry, including the group owner and any collaborators
+ */
+export type GroupMemberWritable = EmbeddedUserWritable & {
+    /**
+     * The user's role on the group. `owner` is the group's creator;
+     * everyone else with a group membership has a `viewer`, `member`,
+     * or `admin` role.
+     *
+     */
+    role: 'owner' | 'viewer' | 'member' | 'admin';
+};
+
+/**
+ * Data payload containing an array of group members
+ */
+export type GroupMemberListWritable = {
+    /**
+     * Array of group members (owner first on page 1)
+     */
+    data: Array<GroupMemberWritable>;
+};
+
+/**
+ * Paginated list of group members with total count
+ */
+export type GroupMemberListResponseWritable = GroupMemberListWritable & PaginatedResponse;
+
+/**
+ * Data payload containing an array of membership invitations
+ */
+export type MembershipInvitationListWritable = {
+    /**
+     * Array of pending membership invitations
+     */
+    data: Array<MembershipInvitationWritable>;
+};
+
+/**
+ * Paginated list of pending membership invitations
+ */
+export type MembershipInvitationListResponseWritable = MembershipInvitationListWritable & PaginatedResponse;
+
+/**
+ * Result of `POST /v3/groups/{id}/invitations`. Inspect `outcome` to
+ * determine what happened; HTTP status mirrors it (`201` for created outcomes,
+ * `200` for no-op outcomes).
+ *
+ */
+export type GroupMemberInviteResponseWritable = {
+    outcome: GroupMemberInviteOutcome;
+    /**
+     * The user that this request resolved to, when known. Null only when
+     * an invitation was issued by email and no matching user exists yet.
+     *
+     */
+    user: EmbeddedUserWritable | null;
+    /**
+     * The invitation associated with this request, for `invited` and
+     * `invitation_pending` outcomes.
+     *
+     */
+    invitation: MembershipInvitationWritable | null;
+};
+
+/**
+ * A block is a piece of content on Are.na. Blocks come in different types,
+ * each with its own set of fields. Use the `type` field to determine which
+ * fields are available.
+ *
+ */
+export type BlockWritable = ({
+    type: 'Text';
+} & TextBlockWritable) | ({
+    type: 'Image';
+} & ImageBlockWritable) | ({
+    type: 'Link';
+} & LinkBlockWritable) | ({
+    type: 'Attachment';
+} & AttachmentBlockWritable) | ({
+    type: 'Embed';
+} & EmbedBlockWritable) | ({
+    type: 'PendingBlock';
+} & PendingBlockWritable);
+
+/**
+ * Common properties shared by all block types
+ */
+export type BaseBlockPropertiesWritable = {
+    /**
+     * Unique identifier for the block
+     */
+    id: number;
+    /**
+     * Base type of the block (always "Block")
+     */
+    base_type: 'Block';
+    /**
+     * Block title
+     */
+    title?: string | null;
+    /**
+     * Block description with multiple renderings
+     */
+    description?: MarkdownContent | null;
+    state: BlockState;
+    visibility: BlockVisibility;
+    /**
+     * Number of comments on the block
+     */
+    comment_count: number;
+    /**
+     * When the block was created
+     */
+    created_at: string;
+    /**
+     * When the block was last updated
+     */
+    updated_at: string;
+    user: EmbeddedUserWritable;
+    /**
+     * Custom key-value metadata
+     */
+    metadata?: Metadata | null;
+    /**
+     * Source URL and metadata (if block was created from a URL)
+     */
+    source?: BlockSource | null;
+    /**
+     * HATEOAS links for navigation
+     */
+    _links: Links;
+    /**
+     * Connection context (only present when block is returned as part of channel contents).
+     * Contains position, pinned status, and information about who connected the block.
+     *
+     */
+    connection?: EmbeddedConnectionWritable | null;
+    /**
+     * Abilities object (only present for full block responses, not in channel contents).
+     * Indicates what actions the current user can perform on this block.
+     *
+     */
+    can?: BlockAbilities | null;
+};
+
+/**
+ * A text block containing markdown content
+ */
+export type TextBlockWritable = BaseBlockPropertiesWritable & {
+    /**
+     * Block type (always "Text" for TextBlock)
+     */
+    type: 'Text';
+    /**
+     * Text content with markdown, HTML, and plain text renderings
+     */
+    content: MarkdownContent;
+};
+
+/**
+ * An image block containing an uploaded or scraped image
+ */
+export type ImageBlockWritable = BaseBlockPropertiesWritable & {
+    /**
+     * Block type (always "Image" for ImageBlock)
+     */
+    type: 'Image';
+    /**
+     * Image data with multiple resolutions
+     */
+    image: BlockImage;
+};
+
+/**
+ * A link block representing a URL with optional preview
+ */
+export type LinkBlockWritable = BaseBlockPropertiesWritable & {
+    /**
+     * Block type (always "Link" for LinkBlock)
+     */
+    type: 'Link';
+    /**
+     * Preview image (if available)
+     */
+    image?: BlockImage | null;
+    /**
+     * Extracted text content from the link
+     */
+    content?: MarkdownContent | null;
+};
+
+/**
+ * An attachment block containing an uploaded file
+ */
+export type AttachmentBlockWritable = BaseBlockPropertiesWritable & {
+    /**
+     * Block type (always "Attachment" for AttachmentBlock)
+     */
+    type: 'Attachment';
+    /**
+     * Attachment file data
+     */
+    attachment: BlockAttachment;
+    /**
+     * Preview image (for PDFs and other previewable files)
+     */
+    image?: BlockImage | null;
+};
+
+/**
+ * An embed block containing embedded media (video, audio, etc.)
+ */
+export type EmbedBlockWritable = BaseBlockPropertiesWritable & {
+    /**
+     * Block type (always "Embed" for EmbedBlock)
+     */
+    type: 'Embed';
+    /**
+     * Embed data including HTML and dimensions
+     */
+    embed: BlockEmbed;
+    /**
+     * Thumbnail image (if available)
+     */
+    image?: BlockImage | null;
+};
+
+/**
+ * A block that is currently being processed. The final type (Text, Image, Link, etc.)
+ * will be determined once processing completes. Check the `state` field for processing status.
+ *
+ */
+export type PendingBlockWritable = BaseBlockPropertiesWritable & {
+    /**
+     * Block type (always "PendingBlock" for blocks being processed)
+     */
+    type: 'PendingBlock';
+};
+
+/**
+ * A comment on a block
+ */
+export type CommentWritable = {
+    /**
+     * Unique identifier for the comment
+     */
+    id: number;
+    /**
+     * Comment type
+     */
+    type: 'Comment';
+    /**
+     * Comment body with markdown, HTML, and plain text renderings
+     */
+    body?: MarkdownContent | null;
+    /**
+     * When the comment was created
+     */
+    created_at: string;
+    /**
+     * When the comment was last updated
+     */
+    updated_at: string;
+    user: EmbeddedUserWritable;
+    _links: Links & unknown;
+};
+
+export type ChannelWritable = {
+    /**
+     * Unique identifier for the channel
+     */
+    id: number;
+    /**
+     * Channel type
+     */
+    type: 'Channel';
+    /**
+     * Channel URL slug
+     */
+    slug: string;
+    /**
+     * Channel title
+     */
+    title: string;
+    /**
+     * Channel description with multiple renderings
+     */
+    description?: MarkdownContent | null;
+    state: ChannelState;
+    visibility: ChannelVisibility;
+    /**
+     * When the channel was created
+     */
+    created_at: string;
+    /**
+     * When the channel was last updated
+     */
+    updated_at: string;
+    /**
+     * Custom key-value metadata
+     */
+    metadata?: Metadata | null;
+    owner: ChannelOwnerWritable;
+    counts: ChannelCounts;
+    /**
+     * Collaborators on this channel (users and groups).
+     * Only present when channel is returned as a full resource, not when embedded.
+     *
+     */
+    collaborators?: Array<ChannelCollaboratorWritable>;
+    _links: Links & unknown;
+    /**
+     * Connection context (only present when channel is returned as part of another channel's contents).
+     * Contains position, pinned status, and information about who connected the channel.
+     *
+     */
+    connection?: EmbeddedConnectionWritable | null;
+    /**
+     * Actions the current user can perform on this channel.
+     * Only present when channel is returned as a full resource, not when embedded.
+     *
+     */
+    can?: ChannelAbilities | null;
+};
+
+/**
+ * Channel owner (User or Group)
+ */
+export type ChannelOwnerWritable = ({
+    type: 'User';
+} & EmbeddedUserWritable) | ({
+    type: 'Group';
+} & EmbeddedGroup);
+
+/**
+ * Channel collaborator (User or Group)
+ */
+export type ChannelCollaboratorWritable = ({
+    type: 'User';
+} & EmbeddedUserWritable) | ({
+    type: 'Group';
+} & EmbeddedGroup);
+
+/**
+ * User or group who performed the activity.
+ */
+export type ActivityActorWritable = ({
+    type: 'User';
+} & EmbeddedUserWritable) | ({
+    type: 'Group';
+} & EmbeddedGroup);
+
+/**
+ * Resource involved in a feed activity.
+ */
+export type ActivitySubjectWritable = ({
+    type: 'User';
+} & EmbeddedUserWritable) | ({
+    type: 'Group';
+} & EmbeddedGroup) | ({
+    type: 'Channel';
+} & ChannelWritable) | ({
+    type: 'Text';
+} & TextBlockWritable) | ({
+    type: 'Image';
+} & ImageBlockWritable) | ({
+    type: 'Link';
+} & LinkBlockWritable) | ({
+    type: 'Attachment';
+} & AttachmentBlockWritable) | ({
+    type: 'Embed';
+} & EmbedBlockWritable) | ({
+    type: 'Comment';
+} & CommentWritable);
+
+/**
+ * Common fields for feed activities and notifications.
+ */
+export type ActivityBaseWritable = {
+    /**
+     * Unique identifier for the underlying activity.
+     */
+    id: number;
+    /**
+     * When the activity occurred.
+     */
+    created_at: string;
+    kind: ActivityKind;
+    actor: ActivityActorWritable;
+    item: ActivitySubjectWritable | null;
+    target: ActivitySubjectWritable | null;
+    parent: ActivitySubjectWritable | null;
+};
+
+/**
+ * A single feed activity.
+ */
+export type ActivityWritable = ActivityBaseWritable & {
+    type: 'Activity';
+};
+
+/**
+ * A notification feed activity with read state.
+ */
+export type NotificationWritable = ActivityBaseWritable & {
+    type: 'Notification';
+    /**
+     * Whether the authenticated user has read this notification.
+     */
+    is_read: boolean;
+};
+
+/**
+ * Cursor-paginated feed response.
+ */
+export type FeedListResponseWritable = {
+    meta: CursorMeta;
+    data: Array<ActivityWritable>;
+};
+
+/**
+ * Cursor-paginated notification feed response.
+ */
+export type NotificationListResponseWritable = {
+    meta: CursorMeta;
+    data: Array<NotificationWritable>;
+};
+
+/**
+ * Response to marking a single notification as read. Returns the updated
+ * notification alongside the new unread count, so clients can refresh
+ * both list state and badge without a follow-up request.
+ *
+ */
+export type NotificationReadResponseWritable = {
+    meta: NotificationReadMeta;
+    data: NotificationWritable;
+};
+
+/**
+ * Data payload containing an array of users
+ */
+export type UserListWritable = {
+    /**
+     * Array of users
+     */
+    data: Array<UserWritable>;
+};
+
+/**
+ * Data payload containing an array of channels
+ */
+export type ChannelListWritable = {
+    /**
+     * Array of channels
+     */
+    data: Array<ChannelWritable>;
+};
+
+/**
+ * Data payload containing mixed content that can be connected to channels (blocks and channels)
+ */
+export type ConnectableListWritable = {
+    /**
+     * Array of blocks and channels
+     */
+    data: Array<TextBlockWritable | ImageBlockWritable | LinkBlockWritable | AttachmentBlockWritable | EmbedBlockWritable | ChannelWritable>;
+};
+
+/**
+ * Data payload containing followable items (users, channels, and groups)
+ */
+export type FollowableListWritable = {
+    /**
+     * Array of users, channels, and/or groups
+     */
+    data: Array<UserWritable | ChannelWritable | GroupWritable>;
+};
+
+/**
+ * Data payload containing all content types
+ */
+export type EverythingListWritable = {
+    /**
+     * Array of results (blocks, channels, users, or groups)
+     */
+    data: Array<TextBlockWritable | ImageBlockWritable | LinkBlockWritable | AttachmentBlockWritable | EmbedBlockWritable | ChannelWritable | UserWritable | GroupWritable>;
+};
+
+/**
+ * Paginated list of users with total count
+ */
+export type UserListResponseWritable = UserListWritable & PaginatedResponse;
+
+/**
+ * Paginated list of channels with total count
+ */
+export type ChannelListResponseWritable = ChannelListWritable & PaginatedResponse;
+
+/**
+ * Data payload containing an array of groups
+ */
+export type GroupListWritable = {
+    /**
+     * Array of groups
+     */
+    data: Array<GroupWritable>;
+};
+
+/**
+ * Paginated list of groups with total count
+ */
+export type GroupListResponseWritable = GroupListWritable & PaginatedResponse;
+
+/**
+ * Paginated list of connectable content (blocks and channels)
+ */
+export type ConnectableListResponseWritable = ConnectableListWritable & PaginatedResponse;
+
+/**
+ * Paginated list of followable items (users, channels, and groups) with total count
+ */
+export type FollowableListResponseWritable = FollowableListWritable & PaginatedResponse;
+
+/**
+ * Paginated list of all content types with total count
+ */
+export type EverythingListResponseWritable = EverythingListWritable & PaginatedResponse;
+
+/**
+ * Data payload containing an array of comments
+ */
+export type CommentListWritable = {
+    /**
+     * Array of comments
+     */
+    data: Array<CommentWritable>;
+};
+
+/**
+ * Paginated list of comments with total count
+ */
+export type CommentListResponseWritable = CommentListWritable & PaginatedResponse;
 
 /**
  * Page number for pagination
@@ -4198,6 +4987,10 @@ export type CreateGroupData = {
          * URL of an avatar image to fetch asynchronously.
          */
         avatar_url?: string;
+        /**
+         * Role assigned to new members joining the group. Defaults to `member`.
+         */
+        default_role?: GroupMembershipRole;
     };
     path?: never;
     query?: never;
@@ -4348,6 +5141,10 @@ export type UpdateGroupData = {
          * URL of an avatar image to fetch asynchronously.
          */
         avatar_url?: string;
+        /**
+         * Role assigned to new members joining the group
+         */
+        default_role?: GroupMembershipRole;
     };
     path: {
         /**
@@ -4606,6 +5403,62 @@ export type RemoveGroupMemberResponses = {
 };
 
 export type RemoveGroupMemberResponse = RemoveGroupMemberResponses[keyof RemoveGroupMemberResponses];
+
+export type UpdateGroupMemberData = {
+    body: {
+        role: GroupMembershipRole;
+    };
+    path: {
+        /**
+         * Resource ID or slug
+         */
+        id: string;
+        /**
+         * User ID of the group member to update
+         */
+        user_id: number;
+    };
+    query?: never;
+    url: '/v3/groups/{id}/members/{user_id}';
+};
+
+export type UpdateGroupMemberErrors = {
+    /**
+     * Bad request - missing or invalid parameters
+     */
+    400: Error;
+    /**
+     * Unauthorized
+     */
+    401: Error;
+    /**
+     * Forbidden - insufficient permissions to access this resource
+     */
+    403: Error;
+    /**
+     * Resource not found
+     */
+    404: Error;
+    /**
+     * Request timeout - the request took too long to process and was canceled
+     */
+    408: Error;
+    /**
+     * Rate limit exceeded
+     */
+    429: RateLimitError;
+};
+
+export type UpdateGroupMemberError = UpdateGroupMemberErrors[keyof UpdateGroupMemberErrors];
+
+export type UpdateGroupMemberResponses = {
+    /**
+     * Group member updated successfully
+     */
+    200: GroupMember;
+};
+
+export type UpdateGroupMemberResponse = UpdateGroupMemberResponses[keyof UpdateGroupMemberResponses];
 
 export type GetGroupInvitationsData = {
     body?: never;

@@ -14,6 +14,7 @@ export type {
   Group,
   GroupInvite,
   GroupMember,
+  GroupMembershipRole,
   ImageBlock,
   LinkBlock,
   Me,

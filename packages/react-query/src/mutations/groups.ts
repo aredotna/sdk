@@ -12,6 +12,8 @@ import type {
   RemoveGroupMemberResponse,
   RevokeGroupInvitationResponse,
   UpdateGroupData,
+  UpdateGroupMemberData,
+  UpdateGroupMemberResponse,
 } from "@aredotna/sdk/api";
 import { useArena } from "../use-arena";
 import { type ArenaMutationOptions, useArenaMutation } from "./shared";
@@ -33,6 +35,11 @@ type LeaveGroupVariables = {
   id: GroupId;
 };
 type RemoveGroupMemberVariables = {
+  id: GroupId;
+  userId: number;
+};
+type UpdateGroupMemberVariables = {
+  body: UpdateGroupMemberData["body"];
   id: GroupId;
   userId: number;
 };
@@ -59,6 +66,10 @@ export type UseLeaveGroupOptions = ArenaMutationOptions<LeaveGroupResponse, Leav
 export type UseRemoveGroupMemberOptions = ArenaMutationOptions<
   RemoveGroupMemberResponse,
   RemoveGroupMemberVariables
+>;
+export type UseUpdateGroupMemberOptions = ArenaMutationOptions<
+  UpdateGroupMemberResponse,
+  UpdateGroupMemberVariables
 >;
 export type UseInviteToGroupOptions = ArenaMutationOptions<
   CreateGroupInvitationResponse,
@@ -144,6 +155,18 @@ export const useRemoveGroupMember = (options?: UseRemoveGroupMemberOptions) => {
     mutationFn: ({ id, userId }) => arena.groups.removeMember(id, userId),
   } satisfies {
     mutationFn: (variables: RemoveGroupMemberVariables) => Promise<RemoveGroupMemberResponse>;
+  };
+
+  return useArenaMutation(options ? { ...mutation, options } : mutation);
+};
+
+export const useUpdateGroupMember = (options?: UseUpdateGroupMemberOptions) => {
+  const arena = useArena();
+
+  const mutation = {
+    mutationFn: ({ body, id, userId }) => arena.groups.updateMember(id, userId, body),
+  } satisfies {
+    mutationFn: (variables: UpdateGroupMemberVariables) => Promise<UpdateGroupMemberResponse>;
   };
 
   return useArenaMutation(options ? { ...mutation, options } : mutation);
