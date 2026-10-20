@@ -55,6 +55,7 @@ const expectedOperations = [
   "updateChannel",
   "updateConnection",
   "updateGroup",
+  "updateGroupMember",
 ];
 
 describe("@aredotna/sdk/api operation exports", () => {

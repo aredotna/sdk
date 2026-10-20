@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ArenaNotFoundError, createArena } from "../src";
+import { ArenaNotFoundError, createArena, type GroupMembershipRole } from "../src";
 
 describe("createArena", () => {
   it("binds the stable channel facade to the generated client", async () => {
@@ -34,6 +34,60 @@ describe("createArena", () => {
     });
 
     await expect(arena.channels.get("missing")).rejects.toBeInstanceOf(ArenaNotFoundError);
+  });
+
+  it("updates a group member's role with authentication and request overrides", async () => {
+    const calls: Request[] = [];
+    const controller = new AbortController();
+    const role: GroupMembershipRole = "viewer";
+    const arena = createArena({
+      fetch: async (input) => {
+        const request = new Request(input);
+        calls.push(request);
+        return json({ id: 42, role, username: "member" });
+      },
+      token: "token",
+    });
+
+    const member = await arena.groups.updateMember(
+      123,
+      42,
+      { role },
+      { headers: { "X-Request-ID": "role-update" }, signal: controller.signal },
+    );
+
+    expect(member).toMatchObject({ id: 42, role, username: "member" });
+    const request = calls[0]!;
+    expect(request.url).toBe("https://api.are.na/v3/groups/123/members/42");
+    expect(request.method).toBe("PATCH");
+    expect(request.headers.get("Authorization")).toBe("Bearer token");
+    expect(request.headers.get("X-Request-ID")).toBe("role-update");
+    expect(await request.json()).toEqual({ role });
+    controller.abort();
+    expect(request.signal.aborted).toBe(true);
+  });
+
+  it("passes group default roles and block covers through to the API", async () => {
+    const bodies: unknown[] = [];
+    const arena = createArena({
+      fetch: async (input) => {
+        bodies.push(await new Request(input).json());
+        return json({ id: 1 });
+      },
+    });
+
+    await arena.groups.create({ name: "Studio", default_role: "viewer" });
+    await arena.groups.update("studio", { default_role: "admin" });
+    const block = { value: "https://example.com", cover_url: "https://example.com/cover.jpg" };
+    await arena.blocks.create({ ...block, channels: [{ id: 1 }] });
+    await arena.blocks.batchCreate({ blocks: [block], channel_ids: [1] });
+
+    expect(bodies).toEqual([
+      { name: "Studio", default_role: "viewer" },
+      { default_role: "admin" },
+      { ...block, channels: [{ id: 1 }] },
+      { blocks: [block], channel_ids: [1] },
+    ]);
   });
 
   it("binds expanded groups and me endpoints", async () => {

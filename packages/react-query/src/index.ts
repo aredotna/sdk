@@ -34,6 +34,7 @@ export type {
   UseLeaveGroupOptions,
   UseRemoveGroupMemberOptions,
   UseRevokeGroupInvitationOptions,
+  UseUpdateGroupMemberOptions,
   UseUpdateGroupOptions,
 } from "./mutations/groups";
 export {
@@ -47,6 +48,7 @@ export {
   useRemoveGroupMember,
   useRevokeGroupInvitation,
   useUpdateGroup,
+  useUpdateGroupMember,
 } from "./mutations/groups";
 export type {
   UseMarkAllMyNotificationsReadOptions,

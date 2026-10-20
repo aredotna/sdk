@@ -1,9 +1,39 @@
 import { waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { useBatchCreateBlocks, useCreateBlock, useCreateChannel, useUpdateChannel } from "../src";
+import {
+  useBatchCreateBlocks,
+  useCreateBlock,
+  useCreateChannel,
+  useUpdateChannel,
+  useUpdateGroupMember,
+} from "../src";
 import { createTestArena, createTestQueryClient, json, renderArenaHook } from "./helpers";
 
 describe("mutation hooks", () => {
+  it.each([true, false])("updates group roles with invalidation=%s", async (invalidate) => {
+    const fetch = vi.fn(async (_request: RequestInfo | URL) =>
+      json({ id: 42, role: "admin", username: "member" }),
+    );
+    const arena = createTestArena(fetch);
+    const queryClient = createTestQueryClient();
+    const key = ["arena", "groups", "studio", "members"];
+    queryClient.setQueryData(key, [{ id: 42, role: "member" }]);
+    const { result } = renderArenaHook(
+      () => useUpdateGroupMember(invalidate ? undefined : { invalidate: false }),
+      { arena, queryClient },
+    );
+
+    result.current.mutate({ id: "studio", userId: 42, body: { role: "admin" } });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(result.current.data).toMatchObject({ id: 42, role: "admin" });
+    const request = new Request(fetch.mock.calls[0]![0]);
+    expect(request.url).toBe("https://api.are.na/v3/groups/studio/members/42");
+    expect(request.method).toBe("PATCH");
+    expect(await request.json()).toEqual({ role: "admin" });
+    expect(queryClient.getQueryState(key)?.isInvalidated).toBe(invalidate);
+  });
+
   it("creates channels and invalidates arena queries by default", async () => {
     const fetch = vi.fn(async (_request: RequestInfo | URL) =>
       json({
