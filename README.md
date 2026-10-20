@@ -20,6 +20,10 @@ pnpm build
 ```
 
 The OpenAPI snapshot lives in `spec/openapi.json` so builds are reproducible offline.
+After regenerating, review new operations for additions to the SDK resource facade, React Query
+hooks, public exports, tests, and package documentation. Changes to existing request/response
+types flow through the facade's generated type aliases automatically. Update the intentional
+operation list in `packages/sdk/test/operation-exports.test.ts` when endpoints are added.
 
 ## Releases
 
@@ -36,9 +40,10 @@ Release flow:
    `@aredotna/react-query`.
 5. The Publish workflow creates a GitHub Release if one does not already exist.
 
-Required secrets:
+Publishing authentication:
 
-- `NPM_TOKEN`: npm token with publish access to the `@aredotna` scope.
+- Configure npm trusted publishing for both packages to allow this repository's `publish.yml`
+  workflow. The workflow uses GitHub Actions OIDC; it does not read an `NPM_TOKEN` secret.
 - `RELEASE_TOKEN` (optional): token used by the Release workflow so the release commit can
   re-trigger CI on `main`.
 

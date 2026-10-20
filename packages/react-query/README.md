@@ -73,6 +73,10 @@ TanStack Query's `UseInfiniteQueryResult`.
 Available read hooks:
 
 - `useMe()`
+- `useMyFeed(query?)`
+- `useInfiniteMyFeed(query?)`
+- `useMyNotifications(query?)`
+- `useInfiniteMyNotifications(query?)`
 - `usePing()`
 - `useBlock(id)`
 - `useBlockConnections(id, query?)`
@@ -90,6 +94,11 @@ Available read hooks:
 - `useGroupContents(id, query?)`
 - `useInfiniteGroupContents(id, query?)`
 - `useGroupFollowers(id, query?)`
+- `useGroupMembers(id, query?)`
+- `useInfiniteGroupMembers(id, query?)`
+- `useGroupInvitations(id, query?)`
+- `useInfiniteGroupInvitations(id, query?)`
+- `useGroupInvite(id)`
 - `useUser(id)`
 - `useUserContents(id, query?)`
 - `useInfiniteUserContents(id, query?)`
@@ -139,15 +148,49 @@ Available mutation hooks:
 - `useCreateChannel()`
 - `useCreateUploadBlock()`
 - `useCreateConnection()`
+- `useCreateGroup()`
+- `useCreateGroupInvite()`
 - `useDeleteChannel()`
 - `useDeleteComment()`
 - `useDeleteConnection()`
+- `useDeleteGroup()`
+- `useDeleteGroupInvite()`
+- `useInviteToGroup()`
+- `useJoinGroup()`
+- `useLeaveGroup()`
+- `useMarkAllMyNotificationsRead()`
+- `useMarkMyNotificationRead()`
 - `useMoveConnection()`
+- `useRemoveGroupMember()`
+- `useRevokeGroupInvitation()`
 - `useUpdateBlock()`
 - `useUpdateChannel()`
 - `useUpdateConnection()`
+- `useUpdateGroup()`
+- `useUpdateGroupMember()`
 - `useUpload()`
 - `useUploadMany()`
+
+Group mutations accept `default_role` when creating or updating a group. To change an
+existing member's role:
+
+```tsx
+const updateMember = useUpdateGroupMember();
+
+updateMember.mutate({
+  id: "studio",
+  userId: 42,
+  body: { role: "viewer" },
+});
+```
+
+Roles are `viewer`, `member`, and `admin`. The group owner cannot be changed through this
+endpoint. Successful role updates invalidate Arena queries by default, including member
+lists and resources whose permissions may have changed. Pass `invalidate: false` to manage
+that refresh yourself.
+
+Block creation mutations also accept `cover_url`: directly in `useCreateBlock()`, on each
+block in `useBatchCreateBlocks()`, or inside `block` in `useCreateUploadBlock()`.
 
 For custom wrappers, import `useArenaQuery`, `useArenaInfiniteQuery`, `useArenaMutation`,
 `requestOptions`, and `arenaQueryKeys` from this package.
